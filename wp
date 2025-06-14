@@ -1,0 +1,28 @@
+#!/bin/bash
+#
+# WP-CLI wrapper script for Docker.
+#
+# This script executes WP-CLI commands within the 'wordpress' Docker service,
+# running as the 'www-data' user to ensure correct file permissions and environment.
+#
+# Usage: ./wp <wp-cli-command>
+# Example: ./wp plugin list --status=active
+#
+
+# Ensure the script is run from the project root where docker-compose.yaml is located.
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [ ! -f "${PROJECT_ROOT}/docker-compose.yaml" ]; then
+    echo "Error: This script must be run from the project root directory containing docker-compose.yaml." >&2
+    exit 1
+fi
+
+# Check if Docker services are running, specifically the 'wordpress' service.
+if ! docker-compose ps -q wordpress | grep -q .; then
+    echo "Error: The 'wordpress' Docker service is not running. Please start your Docker environment (e.g., ./start)." >&2
+    exit 1
+fi
+
+# Execute the WP-CLI command inside the 'wordpress' container as 'www-data'.
+# -T disables pseudo-tty allocation, which is good for scripting.
+# "$@" passes all arguments from this script to the wp command.
+docker-compose exec -T -u www-data wordpress wp "$@"

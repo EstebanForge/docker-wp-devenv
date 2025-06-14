@@ -1,0 +1,112 @@
+# WordPress Docker Environment
+
+# Environment Configuration
+.env
+.env.local
+.env.production
+.env.staging
+
+# Setup information (contains sensitive data)
+SETUP-INFO.md
+
+# WordPress Core Files (managed by Docker)
+# Keep only wp-content customizations
+wp-admin/
+wp-includes/
+*.php
+!.php-cs-fixer.dist.php
+!src/
+
+# WordPress Core (Composer managed - for IDE support only)
+wp-core/
+
+# WordPress Configuration
+wp-config.php
+wp-config-sample.php
+.htaccess
+
+# Database
+*.sql
+*.sql.gz
+dbdata/
+
+# Docker
+.docker/
+docker-compose.override.yml
+
+# Generated Configuration Files
+nginx-conf/nginx.conf
+.permissions_set
+
+# Logs
+*.log
+logs/
+src/debug.log
+src/error_log
+
+# SSL Certificates
+*.pem
+*.crt
+*.key
+certbot-etc/
+
+# IDE and Editor Files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Node.js (if using build tools)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+yarn.lock
+
+# PHP Dependencies
+vendor/
+composer.lock
+
+# Temporary Files
+tmp/
+temp/
+cache/
+*.tmp
+
+# Backup Files
+*.backup
+*.bak
+backup/
+backups/
+
+# WordPress Uploads (optional - uncomment if you don't want to track uploads)
+# src/uploads/
+
+# Plugin/Theme Development Exclusions
+src/uploads/
+src/upgrade/
+src/cache/
+
+# Keep Important Directories
+!src/.gitkeep
+!php-conf/
+!nginx-conf/
+!scripts/
+!docs/
+
+# Composer-managed WordPress plugins/themes (installed via WPackagist)
+# Exclude all plugins except our custom ones
+src/plugins/*
+!src/plugins/.gitkeep
+
+# Exclude all themes except our custom ones
+src/themes/*
+!src/themes/.gitkeep
+
+# Keep custom development plugins/themes
+!src/plugins/custom-plugin/
+!src/themes/custom-theme/

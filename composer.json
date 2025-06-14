@@ -1,0 +1,78 @@
+{
+  "name": "estebanforge/docker-wp-devenv",
+  "description": "WordPress Docker Development Environment",
+  "keywords": [
+    "wordpress",
+    "docker",
+    "development",
+    "environment"
+  ],
+  "type": "project",
+  "license": "MIT",
+  "require": {
+    "php": ">=8.2",
+    "composer/installers": "^2.0",
+    "johnpbloch/wordpress-core-installer": "*",
+    "johnpbloch/wordpress-core": "*",
+    "wpackagist-plugin/plugin-check": "*",
+    "wpackagist-plugin/transients-manager": "*",
+    "wpackagist-plugin/wp-crontrol": "*",
+    "wpackagist-plugin/query-monitor": "*",
+    "wpackagist-plugin/classic-editor": "*",
+    "wpackagist-theme/twentytwentyfive": "*"
+  },
+  "require-dev": {
+    "phpunit/phpunit": "^10.0",
+    "squizlabs/php_codesniffer": "^3.7",
+    "phpstan/phpstan": "^1.10",
+    "dealerdirect/phpcodesniffer-composer-installer": "^1.0",
+    "wp-coding-standards/wpcs": "^3.0",
+    "php-stubs/wordpress-stubs": "*"
+  },
+  "repositories": [
+    {
+      "type": "composer",
+      "url": "https://wpackagist.org",
+      "only": [
+        "wpackagist-plugin/*",
+        "wpackagist-theme/*"
+      ]
+    }
+  ],
+  "extra": {
+    "installer-paths": {
+      "src/plugins/{$name}/": [
+        "type:wordpress-plugin"
+      ],
+      "src/themes/{$name}/": [
+        "type:wordpress-theme"
+      ],
+      "src/mu-plugins/{$name}/": [
+        "type:wordpress-muplugin"
+      ]
+    },
+    "wordpress-install-dir": "src/wp-core"
+  },
+  "config": {
+    "allow-plugins": {
+      "composer/installers": true,
+      "dealerdirect/phpcodesniffer-composer-installer": true,
+      "johnpbloch/wordpress-core-installer": true
+    },
+    "optimize-autoloader": true,
+    "preferred-install": "dist",
+    "sort-packages": true
+  },
+  "scripts": {
+    "test": "phpunit",
+    "phpcs": "phpcs --standard=WordPress src/",
+    "phpcbf": "phpcbf --standard=WordPress src/",
+    "phpstan": "phpstan analyse src/ --level=5",
+    "quality": [
+      "@phpcs",
+      "@phpstan"
+    ]
+  },
+  "minimum-stability": "stable",
+  "prefer-stable": true
+}

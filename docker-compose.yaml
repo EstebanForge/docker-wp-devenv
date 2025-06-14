@@ -1,0 +1,87 @@
+services:
+  db:
+    image: mariadb:10
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      - MYSQL_DATABASE=wordpress
+      - MYSQL_USER=$MYSQL_USER
+      - MYSQL_PASSWORD=$MYSQL_PASSWORD
+    volumes:
+      - dbdata:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin" ,"ping", "-h", "localhost", "-u$MYSQL_USER", "-p$MYSQL_PASSWORD"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - app-network
+
+  mailpit:
+    image: axllent/mailpit:latest
+    restart: unless-stopped
+    ports:
+      - "1025:1025" # SMTP port
+      - "8025:8025" # Web UI port
+    networks:
+      - app-network
+
+  wordpress:
+    depends_on:
+      - db
+      - mailpit
+    build:
+      context: .
+      dockerfile: php-conf/Dockerfile
+    restart: unless-stopped
+
+    env_file: .env
+    environment:
+      - WORDPRESS_DB_HOST=db
+      - WORDPRESS_DB_USER=$MYSQL_USER
+      - WORDPRESS_DB_PASSWORD=$MYSQL_PASSWORD
+      - WORDPRESS_DB_NAME=wordpress
+      - WORDPRESS_CONFIG_EXTRA=
+        if (!defined('FS_METHOD')) { define('FS_METHOD', '${FS_METHOD:-direct}'); }
+        if (!defined('WP_MEMORY_LIMIT')) { define('WP_MEMORY_LIMIT', '${WP_MEMORY_LIMIT:-256M}'); }
+        if (!defined('WP_DEBUG_LOG')) { define('WP_DEBUG_LOG', ${WP_DEBUG_LOG:-false}); }
+
+        if (!defined('WP_DEBUG_DISPLAY')) { define('WP_DEBUG_DISPLAY', ${WP_DEBUG_DISPLAY:-false}); }
+        if (!defined('SCRIPT_DEBUG')) { define('SCRIPT_DEBUG', ${SCRIPT_DEBUG:-false}); }
+        if (!defined('SAVEQUERIES')) { define('SAVEQUERIES', ${SAVEQUERIES:-false}); }
+    volumes:
+      - wordpress:/var/www/html
+      - ./src:/var/www/html/wp-content:Z
+      - ./php-conf/custom.ini:/usr/local/etc/php/conf.d/custom.ini:Z
+    ports:
+      - "9003:9003"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - app-network
+
+
+  webserver:
+    depends_on:
+      - wordpress
+    image: nginx:latest
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - wordpress:/var/www/html          # For WP core files
+      - ./src:/var/www/html/wp-content:Z # For wp-content (plugins, themes, uploads)
+      - ./nginx-conf:/etc/nginx/conf.d:Z # Nginx configs
+
+    networks:
+      - app-network
+
+volumes:
+  wordpress:
+  dbdata: {}
+
+networks:
+  app-network:
+    driver: bridge

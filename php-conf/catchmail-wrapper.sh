@@ -1,0 +1,8 @@
+#!/bin/sh
+# This wrapper script ensures the correct RubyGems environment is set up
+# before executing the catchmail script for PHP's sendmail_path.
+
+export GEM_PATH="/var/www/.local/share/gem/ruby/3.1.0:/var/lib/gems/3.1.0:/usr/local/lib/ruby/gems/3.1.0:/usr/lib/ruby/gems/3.1.0:/usr/lib/x86_64-linux-gnu/ruby/gems/3.1.0:/usr/share/rubygems-integration/3.1.0:/usr/share/rubygems-integration/all:/usr/lib/x86_64-linux-gnu/rubygems-integration/3.1.0"
+
+# Execute catchmail, passing along all arguments from PHP.
+exec /usr/local/bin/catchmail "$@"
