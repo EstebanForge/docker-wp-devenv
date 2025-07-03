@@ -14,7 +14,7 @@ This WordPress Docker environment includes SSL support using locally trusted cer
 ### Automatic Setup (Recommended)
 SSL is automatically configured when running the main setup script:
 ```bash
-./setup
+./setup.sh
 ```
 
 ### Manual Setup
@@ -48,8 +48,8 @@ docker-compose restart
 ## File Structure
 ```
 ssl/
-├── wp.local.crt     # SSL certificate
-└── wp.local.key     # Private key
+├── wp.localhost.crt     # SSL certificate
+└── wp.localhost.key     # Private key
 ```
 
 ## Security Configuration
@@ -71,8 +71,8 @@ Referrer-Policy: strict-origin-when-cross-origin
 
 ### URL Configuration
 WordPress is automatically configured to use HTTPS:
-- **Home URL**: `https://your-domain.local`
-- **Site URL**: `https://your-domain.local`
+- **Home URL**: `https://your-domain.localhost`
+- **Site URL**: `https://your-domain.localhost`
 - **Admin URLs**: All admin links use HTTPS
 
 ### Mixed Content Prevention
@@ -99,13 +99,13 @@ Certificates are trusted because:
 ### Certificate Issues
 ```bash
 # Check certificate validity
-openssl x509 -in ssl/wp.local.crt -text -noout
+openssl x509 -in ssl/wp.localhost.crt -text -noout
 
 # Verify certificate chain
-openssl verify ssl/wp.local.crt
+openssl verify ssl/wp.localhost.crt
 
 # Check private key
-openssl rsa -in ssl/wp.local.key -check
+openssl rsa -in ssl/wp.localhost.key -check
 ```
 
 ### Browser Not Trusting Certificate
@@ -138,8 +138,8 @@ If you see mixed content warnings:
 
 2. **Update to HTTPS**:
    ```bash
-   ./wp option update home "https://your-domain.local"
-   ./wp option update siteurl "https://your-domain.local"
+   ./wp option update home "https://your-domain.localhost"
+./wp option update siteurl "https://your-domain.localhost"
    ```
 
 ## Development Workflow
@@ -148,7 +148,7 @@ If you see mixed content warnings:
 When changing domains:
 ```bash
 # Update .env file
-WP_DOMAIN=new-domain.local
+WP_DOMAIN=new-domain.localhost
 
 # Regenerate certificates
 ./scripts/setup-ssl.sh

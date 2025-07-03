@@ -13,7 +13,7 @@ else
   exit 1
 fi
 
-DOMAIN="${WP_DOMAIN:-wp.local}"
+DOMAIN="${WP_DOMAIN:-wp.localhost}"
 HOSTS_FILE="/etc/hosts"
 
 echo "🌐 Setting up local domain: $DOMAIN"

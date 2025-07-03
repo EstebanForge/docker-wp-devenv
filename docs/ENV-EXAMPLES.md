@@ -3,7 +3,7 @@
 ## Development Environment (.env)
 ```env
 # WordPress Configuration
-WP_DOMAIN=mysite.local
+WP_DOMAIN=mysite.localhost
 WP_TITLE=My Development Site
 WP_ADMIN_USER=admin
 WP_ADMIN_PASSWORD=secure_dev_password

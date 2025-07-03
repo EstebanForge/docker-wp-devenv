@@ -39,28 +39,75 @@ else
   was_detached_by_default=false
 fi
 
+# Function to setup SELinux contexts if needed
+setup_selinux() {
+  # Check if SELinux is available and enforcing
+  if ! command -v getenforce >/dev/null 2>&1; then
+    return 0 # SELinux not available, skip
+  fi
+
+  local selinux_status
+  selinux_status=$(getenforce 2>/dev/null || echo "Disabled")
+
+  if [ "$selinux_status" != "Enforcing" ]; then
+    return 0 # SELinux not enforcing, skip
+  fi
+
+  echo "🔒 SELinux is enforcing. Setting up container file contexts for project..."
+
+  # Set SELinux file context for this project directory
+  if sudo semanage fcontext -a -t container_file_t "${PROJECT_ROOT_DIR}(/.*)?"; then
+    echo "   SELinux context rule added for ${PROJECT_ROOT_DIR}"
+  else
+    echo "   SELinux context rule already exists or failed to add"
+  fi
+
+  # Apply the context to all files in the project
+  if sudo restorecon -Rv "${PROJECT_ROOT_DIR}"; then
+    echo "   SELinux contexts applied successfully"
+  else
+    echo "⚠️  Warning: Failed to apply SELinux contexts"
+    return 1
+  fi
+
+  return 0
+}
+
 # The docker-compose up command has finished.
-# Now, conditionally run the permissions script.
+# Now, conditionally run SELinux setup and permissions script.
 PERMISSION_FLAG_FILE="${PROJECT_ROOT_DIR}/.permissions_set"
 
 # We run the script if the flag file doesn't exist (first run) or if --build was passed.
 if [ ! -f "${PERMISSION_FLAG_FILE}" ] || [ "$force_permission_check" = true ]; then
   echo ""
   if [ ! -f "${PERMISSION_FLAG_FILE}" ]; then
-    echo "🔐 First start detected. Applying host permissions for the ./src directory..."
+    echo "🔐 First start detected. Setting up SELinux and applying host permissions for the ./src directory..."
   else
-    echo "🔐 --build flag detected. Re-applying host permissions for the ./src directory..."
+    echo "🔐 --build flag detected. Re-setting up SELinux and applying host permissions for the ./src directory..."
+  fi
+
+  # Setup SELinux contexts if needed
+  setup_selinux
+
+  # Fix src directory ownership for container access
+  if [ -d "${PROJECT_ROOT_DIR}/src" ]; then
+    echo "🔧 Setting proper ownership for ./src directory..."
+    if sudo chown -R 1000:1000 "${PROJECT_ROOT_DIR}/src"; then
+      echo "   Ownership set to 1000:1000 for ./src"
+    else
+      echo "⚠️  Warning: Failed to set ownership for ./src directory"
+    fi
   fi
 
   if [ -f "${PERMISSION_SCRIPT_PATH}" ]; then
     if [ ! -x "${PERMISSION_SCRIPT_PATH}" ]; then
       chmod +x "${PERMISSION_SCRIPT_PATH}"
     fi
-    
+
     # Execute the permission script and create the flag file on success
     if "${PERMISSION_SCRIPT_PATH}"; then
       touch "${PERMISSION_FLAG_FILE}"
-      echo "   Permissions applied successfully."
+      echo "   SELinux setup and permissions applied successfully."
     else
       echo "⚠️ Error: Permission script failed. It will be run again on the next start."
     fi
@@ -74,7 +121,7 @@ else
 fi
 
 echo ""
-echo "🎉 Docker environment is up and ./src permissions have been processed."
+echo "🎉 Docker environment is up and SELinux setup/permissions have been processed."
 
 # Determine if services are running in detached mode for the final message
 running_detached=false
@@ -96,6 +143,7 @@ else
   echo "   Services were started in the foreground. If you stop them (Ctrl+C), permissions are already set for the next run."
 fi
 
-echo "   Usage: './start.sh' (defaults to detached mode)."
-echo "   You can pass any 'docker-compose up' arguments, e.g., './start.sh --build -d', './start.sh wordpress'."
-echo "   If arguments are provided and '-d' or '--detach' is not among them, services will likely start in the foreground (e.g., './start.sh --build')."
+echo "   Usage: './start' (defaults to detached mode)."
+echo "   You can pass any 'docker-compose up' arguments, e.g., './start --build -d', './start wordpress'."
+echo "   If arguments are provided and '-d' or '--detach' is not among them, services will likely start in the foreground (e.g., './start --build')."
+echo "   To stop services, run './stop' or 'docker-compose down'."

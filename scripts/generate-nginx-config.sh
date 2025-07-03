@@ -27,4 +27,4 @@ fi
 envsubst '${WP_DOMAIN}' <"$TEMPLATE_FILE" >"$OUTPUT_FILE"
 
 echo "✅ Nginx configuration generated: $OUTPUT_FILE"
-echo "   Domain: ${WP_DOMAIN:-wp.local}"
+echo "   Domain: ${WP_DOMAIN:-wp.localhost}"

@@ -13,7 +13,7 @@ else
   exit 1
 fi
 
-DOMAIN="${WP_DOMAIN:-wp.local}"
+DOMAIN="${WP_DOMAIN:-wp.localhost}"
 SSL_DIR="nginx-conf"
 
 echo "🔒 Setting up SSL certificates for: $DOMAIN"

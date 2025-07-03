@@ -8,7 +8,7 @@ A production-ready WordPress development environment using Docker, optimized for
 - **MySQL 8.0** database
 - **Nginx** reverse proxy with SSL support
 - **WP-CLI** for command-line management
-- **Local domain** support (wp.local by default)
+- **Local domain** support (wp.localhost by default)
 - **SSL/HTTPS** with trusted local certificates
 - **Environment-based configuration**
 - **SELinux compatible** (Fedora/RHEL) - uses `:Z` volume flags and a permission script.
@@ -28,11 +28,11 @@ A production-ready WordPress development environment using Docker, optimized for
 1. **Clone/Download** this repository
 2. **Run the setup script**:
    ```bash
-   chmod +x setup
-   ./setup
+   chmod +x setup.sh
+   ./setup.sh
    ```
 3. **Follow the interactive prompts** to configure:
-   - Local domain (e.g., wp.local)
+   - Local domain (e.g., wp.localhost)
    - WordPress admin credentials
    - Database passwords
    - Performance settings
@@ -44,7 +44,7 @@ A production-ready WordPress development environment using Docker, optimized for
    ```
    This script will start the Docker containers and then automatically run a sub-script (`./scripts/set-src-permissions.sh`) to configure necessary host permissions for the `./src` directory, ensuring compatibility with SELinux and shared write access.
 
-5. **Access your site**: http://your-domain.local
+5. **Access your site**: http://your-domain.localhost
 
 ### Manual Setup (Alternative)
 
@@ -115,7 +115,7 @@ The setup script will:
 │   └── set-src-permissions.sh  # Sets host permissions for ./src directory
 ├── php-conf/              # PHP configuration
 ├── nginx-conf/            # Nginx configuration (also stores generated SSL certs)
-├── docker-compose.yaml    # Docker services
+├── docker-compose.yml    # Docker services
 ├── .env.example          # Environment configuration template
 ├── setup              # First-time setup script
 └── start              # Recommended script to start environment and set permissions
@@ -127,7 +127,7 @@ All settings are managed through the `.env` file:
 
 ```env
 # WordPress Configuration
-WP_DOMAIN=wp.local
+WP_DOMAIN=wp.localhost
 WP_TITLE=My WordPress Site
 WP_ADMIN_USER=admin
 WP_ADMIN_PASSWORD=secure_password
@@ -197,7 +197,7 @@ docker-compose restart
 # Install plugins via WP-CLI
 docker-compose exec wpcli wp plugin install contact-form-7 --activate
 
-# Or via WordPress admin at http://your-domain.local/wp-admin
+# Or via WordPress admin at http://your-domain.localhost/wp-admin
 ```
 
 ## Security Notes
@@ -220,7 +220,7 @@ This script is designed to set appropriate ownership for your host user and appl
 ### SELinux Issues (Fedora/RHEL)
 The Docker Compose configuration uses the `:Z` flag for the `./src` volume mount (`./src:/var/www/html/wp-content:Z`), which tells Docker to relabel the host directory so the container can use it with SELinux.
 
-Additionally, the `./scripts/set-src-permissions.sh` script (run automatically by `./start`) further helps by setting appropriate file ACLs (Access Control Lists) or standard Unix permissions that work well with SELinux and allow shared write access between your host user and the `www-data` user in the container.
+Additionally, the `./scripts/set-src-permissions` script (run automatically by `./start`) further helps by setting appropriate file ACLs (Access Control Lists) or standard Unix permissions that work well with SELinux and allow shared write access between your host user and the `www-data` user in the container.
 
 If you still encounter SELinux denials related to `./src`:
 ```bash
@@ -234,10 +234,10 @@ sudo ausearch -m avc -ts recent
 ### Domain Access Issues
 ```bash
 # Check hosts file
-grep "your-domain.local" /etc/hosts
+grep "your-domain.localhost" /etc/hosts
 
 # Add domain manually if needed
-echo "127.0.0.1 your-domain.local" | sudo tee -a /etc/hosts
+echo "127.0.0.1 your-domain.localhost" | sudo tee -a /etc/hosts
 ```
 
 ## Customization

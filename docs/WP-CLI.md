@@ -41,7 +41,7 @@ This project includes a WP-CLI wrapper script that allows you to run WordPress C
 ### Database Operations
 ```bash
 # Search and replace URLs (useful for domain changes)
-./wp search-replace 'http://old-domain.local' 'http://wp.local'
+./wp search-replace 'http://old-domain.localhost' 'http://wp.localhost'
 
 # Export database
 ./wp db export backup.sql

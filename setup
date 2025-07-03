@@ -105,10 +105,10 @@ collect_configuration() {
   echo ""
 
   # WordPress Domain
-  prompt_with_default "Local domain name" "wp.local" "WP_DOMAIN"
-  # Ensure .local TLD if not provided
+  prompt_with_default "Local domain name" "wp.localhost" "WP_DOMAIN"
+  # Ensure .localhost TLD if not provided
   if [[ "${WP_DOMAIN}" != *.* ]]; then
-    WP_DOMAIN="${WP_DOMAIN}.local"
+    WP_DOMAIN="${WP_DOMAIN}.localhost"
     echo -e "${YELLOW}ℹ️  No TLD provided for domain, defaulted to: ${WP_DOMAIN}${NC}"
   fi
 
@@ -213,7 +213,7 @@ run_setup_scripts() {
 
   # Make scripts executable
   # Make all .sh scripts in the scripts/ directory executable
-  if compgen -G "scripts/*.sh" > /dev/null; then
+  if compgen -G "scripts/*.sh" >/dev/null; then
     chmod +x scripts/*.sh
     print_success "Made all .sh files in scripts/ executable."
   else

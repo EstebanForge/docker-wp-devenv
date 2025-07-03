@@ -8,7 +8,7 @@ Mailpit provides a clean web interface to view the emails your application sends
 
 ## How It Works
 
-- A `mailpit` service is defined in the `docker-compose.yaml` file.
+- A `mailpit` service is defined in the `docker-compose.yml` file.
 - The PHP-FPM container is configured to use a `sendmail_path` that pipes emails to a `catchmail` script.
 - The `catchmail` script forwards the email to the Mailpit service running on the internal Docker network.
 

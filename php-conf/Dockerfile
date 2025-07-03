@@ -1,6 +1,15 @@
 FROM wordpress:php8.3-fpm
 
-# Install MariaDB client tools (for mysqlcheck, etc.)
+# Arguments for user and group IDs, passed from docker-compose.
+ARG HOST_UID
+ARG HOST_GID
+
+# Update existing user and group to match the host.
+# This ensures that files created inside the container have the correct ownership on the host.
+RUN usermod -u ${HOST_UID} www-data && \
+  groupmod -g ${HOST_GID} www-data
+
+# Install dependencies (only what's needed).
 RUN apt-get update && apt-get install -y mariadb-client && rm -rf /var/lib/apt/lists/*
 
 # Install WP-CLI

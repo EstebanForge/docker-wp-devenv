@@ -62,8 +62,8 @@ This WordPress Docker environment includes Xdebug 3.x for PHP debugging with IDE
 ### Manual Trigger
 Add `?XDEBUG_TRIGGER=1` to any URL:
 ```
-http://wp.local/?XDEBUG_TRIGGER=1
-http://wp.local/wp-admin/?XDEBUG_TRIGGER=1
+http://wp.localhost/?XDEBUG_TRIGGER=1
+http://wp.localhost/wp-admin/?XDEBUG_TRIGGER=1
 ```
 
 ### Cookie Trigger
@@ -89,7 +89,7 @@ docker-compose exec wordpress php -i | grep xdebug
 ### Port Conflicts
 If port 9003 is busy, update in both:
 - `php-conf/custom.ini`: `xdebug.client_port = 9004`
-- `docker-compose.yaml`: `"9004:9003"`
+- `docker-compose.yml`: `"9004:9003"`
 
 ### Path Mapping Issues
 Ensure your IDE path mappings match the container structure:
