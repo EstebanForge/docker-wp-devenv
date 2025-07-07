@@ -3,6 +3,33 @@
 
 set -e # Exit immediately if a command exits with a non-zero status.
 
+# Check if Docker daemon is running, try to start if not
+if ! docker info >/dev/null 2>&1; then
+  echo "🔄 Docker daemon is not running. Attempting to start Docker..."
+  if command -v systemctl >/dev/null 2>&1; then
+    if sudo systemctl start docker; then
+      echo "   Docker daemon started via systemctl."
+      # Wait for Docker to be ready
+      for i in {1..10}; do
+        if docker info >/dev/null 2>&1; then
+          break
+        fi
+        sleep 1
+      done
+      if ! docker info >/dev/null 2>&1; then
+        echo "🔴 Error: Docker daemon did not start successfully."
+        exit 1
+      fi
+    else
+      echo "🔴 Error: Failed to start Docker daemon with systemctl."
+      exit 1
+    fi
+  else
+    echo "🔴 Error: Docker is not running and systemctl is not available. Please start Docker manually."
+    exit 1
+  fi
+fi
+
 # Get the directory where this script is located (should be project root)
 PROJECT_ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PERMISSION_SCRIPT_PATH="${PROJECT_ROOT_DIR}/scripts/set-src-permissions.sh"
