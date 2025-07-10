@@ -56,14 +56,66 @@ for arg in "$@"; do
 done
 
 # Check if any arguments were passed
+# Function to bring up Docker services with a retry mechanism for port conflicts.
+docker_up_with_retry() {
+    echo "🚀 Bringing up Docker services via docker-compose..."
+
+    # First attempt
+    if docker-compose up "$@"; then
+        echo "✅ Docker services started successfully on the first attempt."
+        return 0
+    fi
+
+    echo -e "\n🔴 Initial 'docker-compose up' failed. Checking for conflicting containers..."
+
+    # Identify the project name from the current directory to exclude its containers from being stopped.
+    # Assumes the .env file is correctly setting COMPOSE_PROJECT_NAME.
+    local project_name
+    project_name=$(grep COMPOSE_PROJECT_NAME .env | cut -d '=' -f 2)
+    if [ -z "$project_name" ]; then
+        # Fallback to directory name if .env isn't set up as expected.
+        project_name=$(basename "$PWD")
+    fi
+
+    # Find and stop all running containers that do NOT belong to the current project.
+    local other_containers
+    other_containers=$(docker ps -q --format '{{.Names}}' | grep -v "^${project_name}_")
+
+    if [ -n "$other_containers" ]; then
+        echo "   Found running containers from other projects. Stopping them to free up ports..."
+        # The tr command converts the newline-separated list from docker ps into a space-separated list for docker stop.
+        # xargs handles the case where there might be no containers to stop.
+        echo "$other_containers" | tr '\n' ' ' | xargs -r docker stop
+        echo "   Stopped containers: $(echo "$other_containers" | tr '\n' ' ')"
+    else
+        echo "   No other running containers found. The issue might be something other than a port conflict."
+    fi
+
+    echo -e "\n🔄 Retrying 'docker-compose up'..."
+    if docker-compose up "$@"; then
+        echo "✅ Docker services started successfully on the second attempt."
+        return 0
+    else
+        echo -e "\n🔴 'docker-compose up' failed on the second attempt. Please check the logs above for errors."
+        return 1
+    fi
+}
+
+# Determine arguments and call the retry function.
 if [ $# -eq 0 ]; then
-  echo "   No arguments provided, defaulting to detached mode (-d)."
-  docker-compose up -d
-  was_detached_by_default=true
+    echo "   No arguments provided, defaulting to detached mode (-d)."
+    docker_up_with_retry -d
+    up_status=$?
+    was_detached_by_default=true
 else
-  echo "   Passing arguments to docker-compose up: $@"
-  docker-compose up "$@"
-  was_detached_by_default=false
+    echo "   Passing arguments to docker-compose up: $@"
+    docker_up_with_retry "$@"
+    up_status=$?
+    was_detached_by_default=false
+fi
+
+if [ $up_status -ne 0 ]; then
+    exit $up_status
 fi
 
 # Function to setup SELinux contexts if needed
