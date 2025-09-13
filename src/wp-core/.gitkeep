@@ -1,0 +1,2 @@
+# This file ensures the wp-core directory is tracked by git
+# while ignoring all other content in this directory

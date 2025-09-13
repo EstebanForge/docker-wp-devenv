@@ -27,7 +27,7 @@ services:
     networks:
       - app-network
 
-  wordpress:
+  php:
     depends_on:
       - db
       - mailpit
@@ -35,10 +35,9 @@ services:
       context: .
       dockerfile: php-conf/Dockerfile
       args:
-        - HOST_UID=${HOST_UID}
-        - HOST_GID=${HOST_GID}
+        - HOST_UID=${HOST_UID:-1000}
+        - HOST_GID=${HOST_GID:-1000}
     restart: unless-stopped
-
     env_file: .env
     environment:
       - WORDPRESS_DB_HOST=db
@@ -55,40 +54,37 @@ services:
         if (!defined('SCRIPT_DEBUG')) { define('SCRIPT_DEBUG', ${SCRIPT_DEBUG:-false}); }
         if (!defined('SAVEQUERIES')) { define('SAVEQUERIES', ${SAVEQUERIES:-false}); }
     volumes:
-      - wordpress:/var/www/html
-      - ./src:/var/www/html/wp-content:z
+      - ./src/wp-core:/var/www/html:z
+      - ./src/app:/var/www/html/wp-content:z
       - ./php-conf/custom.ini:/usr/local/etc/php/conf.d/custom.ini:z
-    ports:
-      - "9003:9003"
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    working_dir: /var/www/html
     networks:
       - app-network
 
-
   webserver:
     depends_on:
-      - wordpress
+      - php
     build:
       context: .
       dockerfile: nginx-conf/Dockerfile
       args:
-        - HOST_UID=${HOST_UID}
-        - HOST_GID=${HOST_GID}
+        - HOST_UID=${HOST_UID:-1000}
+        - HOST_GID=${HOST_GID:-1000}
     restart: unless-stopped
     ports:
       - "80:80"
       - "443:443"
     volumes:
-      - wordpress:/var/www/html
-      - ./src:/var/www/html/wp-content:z
+      - ./src/wp-core:/var/www/html:z
+      - ./src/app:/var/www/html/wp-content:z
       - ./nginx-conf:/etc/nginx/conf.d:z
 
     networks:
       - app-network
 
 volumes:
-  wordpress:
   dbdata: {}
 
 networks:

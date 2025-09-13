@@ -18,7 +18,8 @@ wp-includes/
 !src/
 
 # WordPress Core (Composer managed - for IDE support only)
-wp-core/
+src/wp-core/*
+!src/wp-core/.gitkeep
 
 # WordPress Configuration
 wp-config.php
@@ -100,13 +101,13 @@ src/cache/
 
 # Composer-managed WordPress plugins/themes (installed via WPackagist)
 # Exclude all plugins except our custom ones
-src/plugins/*
-!src/plugins/.gitkeep
+src/app/plugins/*
+!src/app/plugins/.gitkeep
 
 # Exclude all themes except our custom ones
-src/themes/*
-!src/themes/.gitkeep
+src/app/themes/*
+!src/app/themes/.gitkeep
 
 # Keep custom development plugins/themes
-!src/plugins/custom-plugin/
-!src/themes/custom-theme/
+!src/app/plugins/custom-plugin/
+!src/app/themes/custom-theme/

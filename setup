@@ -250,9 +250,93 @@ run_setup_scripts() {
     ./scripts/setup-ssl.sh
   fi
 
+  # Create wp-config.php
+  if [ -f "scripts/create-wp-config.sh" ]; then
+    print_success "Creating WordPress configuration..."
+    ./scripts/create-wp-config.sh
+  fi
+
   # Install Composer dependencies
   print_success "Installing Composer dependencies..."
   composer install --optimize-autoloader
+
+  # Function to bring up Docker services with a retry mechanism for port conflicts.
+  docker_up_with_retry() {
+      echo "🚀 Bringing up Docker services via docker-compose..."
+
+      # First attempt
+      if docker-compose up -d; then
+          echo "✅ Docker services started successfully on the first attempt."
+          return 0
+      fi
+
+      echo -e "\n🔴 Initial 'docker-compose up' failed. Checking for conflicting containers..."
+
+      # Identify the project name from the current directory to exclude its containers from being stopped.
+      # Assumes the .env file is correctly setting COMPOSE_PROJECT_NAME.
+      local project_name
+      project_name=$(grep COMPOSE_PROJECT_NAME .env | cut -d '=' -f 2)
+      if [ -z "$project_name" ]; then
+          # Fallback to directory name if .env isn't set up as expected.
+          project_name=$(basename "$PWD")
+      fi
+
+      # Find and stop all running containers that do NOT belong to the current project.
+      local other_containers
+      other_containers=$(docker ps -q --format '{{.Names}}' | grep -v "^${project_name}_")
+
+      if [ -n "$other_containers" ]; then
+          echo "   Found running containers from other projects. Stopping them to free up ports..."
+          # The tr command converts the newline-separated list from docker ps into a space-separated list for docker stop.
+          # xargs handles the case where there might be no containers to stop.
+          echo "$other_containers" | tr '\n' ' ' | xargs -r docker stop
+          echo "   Stopped containers: $(echo "$other_containers" | tr '\n' ' ')"
+      else
+          echo "   No other running containers found. The issue might be something other than a port conflict."
+      fi
+
+      echo -e "\n🔄 Retrying 'docker-compose up'..."
+      if docker-compose up -d; then
+          echo "✅ Docker services started successfully on the second attempt."
+          return 0
+      else
+          echo -e "\n🔴 'docker-compose up' failed on the second attempt. Please check the logs above for errors."
+          return 1
+      fi
+  }
+
+  # Start Docker services with retry logic
+  print_success "Starting Docker services..."
+  if docker_up_with_retry; then
+    # Install WordPress (only if containers are running)
+    if docker-compose ps | grep -q "Up"; then
+      print_success "Installing WordPress..."
+      source .env && ./wp core install \
+        --url="${WP_URL}" \
+        --title="${WP_TITLE}" \
+        --admin_user="${WP_ADMIN_USER}" \
+        --admin_password="${WP_ADMIN_PASSWORD}" \
+        --admin_email="${WP_ADMIN_EMAIL}" \
+        --skip-email
+
+      # Activate plugins and theme
+      ./wp plugin activate --all
+      ./wp theme activate twentytwentyfive
+
+      # Remove default WordPress content to ensure clean installation
+      if [ -d "src/wp-core/wp-content" ]; then
+        echo "🗑️ Removing default WordPress content..."
+        rm -rf src/wp-core/wp-content
+        echo "   Default wp-content directory removed"
+      fi
+
+      print_success "WordPress installation completed!"
+    else
+      print_warning "Docker containers not running. WordPress will be installed on first ./start"
+    fi
+  else
+    print_warning "Failed to start Docker services. WordPress will be installed on first ./start"
+  fi
 
   # Make WP-CLI wrapper executable
   chmod +x wp

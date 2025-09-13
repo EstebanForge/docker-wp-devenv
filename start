@@ -34,11 +34,41 @@ fi
 PROJECT_ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PERMISSION_SCRIPT_PATH="${PROJECT_ROOT_DIR}/scripts/set-src-permissions.sh"
 
+# Function to ensure wp-config.php exists
+ensure_wp_config() {
+  local wp_config_path="src/wp-core/wp-config.php"
+
+  # Check if wp-config.php already exists
+  if [ -f "$wp_config_path" ]; then
+    echo "✅ wp-config.php already exists"
+    return 0
+  fi
+
+  # Create wp-config.php using the dedicated script
+  if [ -f "scripts/create-wp-config.sh" ]; then
+    echo "📝 Creating wp-config.php..."
+    ./scripts/create-wp-config.sh
+  else
+    echo "⚠️  scripts/create-wp-config.sh not found"
+    return 1
+  fi
+}
+
 # Check if SETUP-INFO.md exists
 if [ ! -f "${PROJECT_ROOT_DIR}/SETUP-INFO.md" ]; then
   echo "🔴 Error: SETUP-INFO.md not found in '${PROJECT_ROOT_DIR}'."
   echo "   Please run './setup.sh' first to generate the necessary configuration and information file."
   exit 1
+fi
+
+# Ensure wp-config.php exists
+ensure_wp_config
+
+# Remove default WordPress content, not used here
+if [ -d "src/wp-core/wp-content" ]; then
+  echo "🗑️ Removing default WordPress content..."
+  rm -rf src/wp-core/wp-content
+  echo "   Default wp-content directory removed"
 fi
 
 echo "🚀 Bringing up Docker services via docker-compose..."
@@ -197,6 +227,30 @@ if [ ! -f "${PERMISSION_FLAG_FILE}" ] || [ "$force_permission_check" = true ]; t
 else
   echo ""
   echo "✅ Permissions already set. Skipping."
+fi
+
+# Ensure wp-config.php exists
+ensure_wp_config
+
+# Check if WordPress needs to be installed
+if [ -f ".env" ]; then
+  source .env
+  if ! ./wp core is-installed >/dev/null 2>&1; then
+    echo "📦 WordPress not installed. Installing now..."
+    ./wp core install \
+      --url="${WP_URL}" \
+      --title="${WP_TITLE}" \
+      --admin_user="${WP_ADMIN_USER}" \
+      --admin_password="${WP_ADMIN_PASSWORD}" \
+      --admin_email="${WP_ADMIN_EMAIL}" \
+      --skip-email
+
+    # Activate plugins and theme
+    ./wp plugin activate --all
+    ./wp theme activate twentytwentyfive
+
+    echo "✅ WordPress installation completed!"
+  fi
 fi
 
 echo ""

@@ -41,13 +41,13 @@
   ],
   "extra": {
     "installer-paths": {
-      "src/plugins/{$name}/": [
+      "src/app/plugins/{$name}/": [
         "type:wordpress-plugin"
       ],
-      "src/themes/{$name}/": [
+      "src/app/themes/{$name}/": [
         "type:wordpress-theme"
       ],
-      "src/mu-plugins/{$name}/": [
+      "src/app/mu-plugins/{$name}/": [
         "type:wordpress-muplugin"
       ]
     },

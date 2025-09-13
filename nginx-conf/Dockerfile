@@ -1,8 +1,8 @@
 FROM nginx:latest
 
 # Arguments for user and group IDs, passed from docker-compose.
-ARG HOST_UID
-ARG HOST_GID
+ARG HOST_UID=1000
+ARG HOST_GID=1000
 
 # Update existing user and group to match the host.
 # This ensures that Nginx runs with the same permissions as the host user,

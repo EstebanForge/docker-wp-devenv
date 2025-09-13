@@ -9,7 +9,7 @@ echo "🔍 WordPress Version Information"
 echo "================================"
 
 # Check WordPress version in Docker container (if running)
-if docker-compose ps | grep -q "wordpress.*Up"; then
+if docker-compose ps | grep -q "php.*Up"; then
   echo "📦 Container WordPress version:"
   ./wp core version 2>/dev/null || echo "   Container not accessible"
 else
@@ -32,8 +32,8 @@ curl -s "https://api.wordpress.org/core/version-check/1.7/" |
 
 # Check Docker image tags
 echo "🐳 Docker image info:"
-docker image inspect wordpress:php8.3-fpm --format '{{.RepoTags}}' 2>/dev/null |
-  sed 's/\[//g; s/\]//g; s/wordpress://g' | tr ' ' '\n' | grep php8.3-fpm ||
+docker image inspect php:8.3-fpm --format '{{.RepoTags}}' 2>/dev/null |
+  sed 's/\[//g; s/\]//g; s/php://g' | tr ' ' '\n' | grep php8.3-fpm ||
   echo "   Image not found locally"
 
 echo ""

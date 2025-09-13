@@ -2,27 +2,53 @@
 #
 # WP-CLI wrapper script for Docker.
 #
-# This script executes WP-CLI commands within the 'wordpress' Docker service,
+# This script executes WP-CLI commands within the 'php' Docker service,
 # running as the 'www-data' user to ensure correct file permissions and environment.
 #
 # Usage: ./wp <wp-cli-command>
 # Example: ./wp plugin list --status=active
 #
 
-# Ensure the script is run from the project root where docker-compose.yaml is located.
+# Ensure the script is run from the project root where docker-compose.yml is located.
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-if [ ! -f "${PROJECT_ROOT}/docker-compose.yaml" ]; then
-    echo "Error: This script must be run from the project root directory containing docker-compose.yaml." >&2
+if [ ! -f "${PROJECT_ROOT}/docker-compose.yml" ]; then
+    echo "Error: This script must be run from the project root directory containing docker-compose.yml." >&2
     exit 1
 fi
 
-# Check if Docker services are running, specifically the 'wordpress' service.
-if ! docker-compose ps -q wordpress | grep -q .; then
-    echo "Error: The 'wordpress' Docker service is not running. Please start your Docker environment (e.g., ./start)." >&2
+# Check if Docker services are running, specifically the 'php' service.
+if ! docker-compose ps -q php | grep -q .; then
+    echo "Error: The 'php' Docker service is not running. Please start your Docker environment (e.g., ./start)." >&2
     exit 1
 fi
 
-# Execute the WP-CLI command inside the 'wordpress' container as 'www-data'.
+# Check if wp-config.php exists
+if [ ! -f "${PROJECT_ROOT}/src/wp-core/wp-config.php" ]; then
+    echo "Error: wp-config.php not found. Please run ./setup first." >&2
+    exit 1
+fi
+
+# Determine the appropriate user and flags for the command
+# Use root for installation commands, www-data for regular operations
+USER="www-data"
+ALLOW_ROOT_FLAG=""
+
+for arg in "$@"; do
+    case "$arg" in
+        "core"|"install"|"db"|"search-replace")
+            USER="root"
+            ALLOW_ROOT_FLAG="--allow-root"
+            break
+            ;;
+    esac
+done
+
+# Execute the WP-CLI command inside the 'php' container.
 # -T disables pseudo-tty allocation, which is good for scripting.
 # "$@" passes all arguments from this script to the wp command.
-docker-compose exec -T -u www-data wordpress wp "$@"
+# --skip-ssl flag is added to avoid SSL issues in Docker environment.
+if [ "$USER" = "root" ]; then
+    docker-compose exec -T -u "$USER" php wp "$ALLOW_ROOT_FLAG" --skip-ssl "$@"
+else
+    docker-compose exec -T -u "$USER" php wp --skip-ssl "$@"
+fi

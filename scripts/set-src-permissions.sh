@@ -22,26 +22,26 @@ if ! command -v docker-compose &> /dev/null; then
     exit 1
 fi
 
-# 2. Check if wordpress service is running
-echo "🔎 Checking if 'wordpress' service is running..."
-if ! docker-compose ps wordpress 2>/dev/null | grep -q "Up"; then
-    echo "⚠️ 'wordpress' service is not running or not found. Attempting to start services (wordpress, db)..."
-    docker-compose up -d wordpress db # Start only necessary services if not up
+# 2. Check if php service is running
+echo "🔎 Checking if 'php' service is running..."
+if ! docker-compose ps php 2>/dev/null | grep -q "Up"; then
+    echo "⚠️ 'php' service is not running or not found. Attempting to start services (php, db)..."
+    docker-compose up -d php db # Start only necessary services if not up
     sleep 8 # Give them a moment to start
-    if ! docker-compose ps wordpress 2>/dev/null | grep -q "Up"; then
-        echo "❌ Error: 'wordpress' service could not be started or is not running. Please ensure your Docker environment is correctly set up and services are running."
+    if ! docker-compose ps php 2>/dev/null | grep -q "Up"; then
+        echo "❌ Error: 'php' service could not be started or is not running. Please ensure your Docker environment is correctly set up and services are running."
         exit 1
     fi
 fi
-echo "✅ 'wordpress' service is running."
+echo "✅ 'php' service is running."
 
-# 3. Get GID of www-data user from wordpress container
-echo "🔎 Retrieving GID for 'www-data' user from 'wordpress' container..."
-WWW_DATA_GID=$(docker-compose exec -T wordpress id -g www-data 2>/dev/null | tr -d '\r')
+# 3. Get GID of www-data user from php container
+echo "🔎 Retrieving GID for 'www-data' user from 'php' container..."
+WWW_DATA_GID=$(docker-compose exec -T php id -g www-data 2>/dev/null | tr -d '\r')
 
 if [ -z "${WWW_DATA_GID}" ] || ! [[ "${WWW_DATA_GID}" =~ ^[0-9]+$ ]]; then
-    echo "❌ Error: Could not retrieve a valid GID for 'www-data' from the 'wordpress' container."
-    echo "   Please check if the 'wordpress' container is running correctly and the 'www-data' user exists."
+    echo "❌ Error: Could not retrieve a valid GID for 'www-data' from the 'php' container."
+    echo "   Please check if the 'php' container is running correctly and the 'www-data' user exists."
     exit 1
 fi
 echo "✅ GID for 'www-data' is: ${WWW_DATA_GID}"
