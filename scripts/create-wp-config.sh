@@ -152,6 +152,8 @@ define( 'SAVEQUERIES', true );
 define('WP_HOME', 'https://${WP_DOMAIN}');
 define('WP_SITEURL', 'https://${WP_DOMAIN}');
 define('FS_METHOD', 'direct');
+define('WP_CONTENT_DIR', '/var/www/html/wp-content');
+define('WP_CONTENT_URL', 'https://${WP_DOMAIN}/wp-content');
 
 /* That's all, stop editing! Happy publishing. */
 

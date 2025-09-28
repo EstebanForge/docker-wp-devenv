@@ -46,9 +46,12 @@ done
 # Execute the WP-CLI command inside the 'php' container.
 # -T disables pseudo-tty allocation, which is good for scripting.
 # "$@" passes all arguments from this script to the wp command.
-# --skip-ssl flag is added to avoid SSL issues in Docker environment.
-if [ "$USER" = "root" ]; then
-    docker-compose exec -T -u "$USER" php wp "$ALLOW_ROOT_FLAG" --skip-ssl "$@"
-else
-    docker-compose exec -T -u "$USER" php wp --skip-ssl "$@"
+CMD_ARGS=(wp)
+
+if [ -n "$ALLOW_ROOT_FLAG" ]; then
+    CMD_ARGS+=("$ALLOW_ROOT_FLAG")
 fi
+
+CMD_ARGS+=("$@")
+
+docker-compose exec -T -u "$USER" php "${CMD_ARGS[@]}"

@@ -247,9 +247,57 @@ if [ -f ".env" ]; then
 
     # Activate plugins and theme
     ./wp plugin activate --all
-    ./wp theme activate twentytwentyfive
+
+    # Wait a moment for themes to be properly registered
+    echo "⏳ Waiting for themes to be registered..."
+    sleep 3
+
+    # Re-check if themes are available
+    echo "📋 Available themes:"
+    ./wp theme list --status=inactive
+
+    # Check if twentytwentyfive theme exists and activate it, otherwise fallback to a default theme
+    if ./wp theme is-installed twentytwentyfive >/dev/null 2>&1; then
+      ./wp theme activate twentytwentyfive
+    elif ./wp theme is-installed twentytwentyfour >/dev/null 2>&1; then
+      echo "⚠️  twentytwentyfive theme not found, falling back to twentytwentyfour"
+      ./wp theme activate twentytwentyfour
+    elif ./wp theme is-installed twentytwentythree >/dev/null 2>&1; then
+      echo "⚠️  twentytwentyfive and twentytwentyfour themes not found, falling back to twentytwentythree"
+      ./wp theme activate twentytwentythree
+    else
+      echo "⚠️  No recent default themes found, checking for any available theme"
+      # Get list of available themes and activate the first one
+      available_themes=$(./wp theme list --status=inactive --field=name)
+      if [ -n "$available_themes" ]; then
+        first_theme=$(echo "$available_themes" | head -n 1)
+        echo "   Activating theme: $first_theme"
+        ./wp theme activate "$first_theme"
+      else
+        echo "⚠️  No themes available to activate"
+      fi
+    fi
 
     echo "✅ WordPress installation completed!"
+
+    # Remove wp-content created by installation to ensure bind mount works
+    if [ -d "src/wp-core/wp-content" ]; then
+      echo "🗑️ Removing WordPress-created wp-content to enable bind mount..."
+      rm -rf src/wp-core/wp-content
+      echo "   wp-content directory removed from wp-core to allow bind mount"
+    fi
+
+    # Also clean up any stray wp-content in current directory
+    if [ -d "wp-content" ] && [ ! -L "wp-content" ]; then
+      echo "🗑️ Removing stray wp-content directory created before volume mount..."
+      rm -rf wp-content
+      echo "   Local wp-content directory removed"
+    fi
+
+    # Restart PHP container to ensure bind mount takes effect
+    echo "🔄 Restarting PHP container to apply bind mount..."
+    docker-compose restart php
+    echo "   PHP container restarted"
   fi
 fi
 

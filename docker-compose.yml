@@ -5,8 +5,8 @@ services:
     env_file: .env
     environment:
       - MYSQL_DATABASE=wordpress
-      - MYSQL_USER=$MYSQL_USER
-      - MYSQL_PASSWORD=$MYSQL_PASSWORD
+      - MYSQL_USER=${MYSQL_USER}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
     volumes:
       - dbdata:/var/lib/mysql
     healthcheck:
@@ -29,8 +29,10 @@ services:
 
   php:
     depends_on:
-      - db
-      - mailpit
+      db:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
     build:
       context: .
       dockerfile: php-conf/Dockerfile
@@ -45,14 +47,7 @@ services:
       - WORDPRESS_DB_PASSWORD=$MYSQL_PASSWORD
       - WORDPRESS_DB_NAME=wordpress
       - WORDPRESS_CONFIG_EXTRA=
-        if (!defined('WP_HOME')) { define('WP_HOME', '${WP_URL}'); }
-        if (!defined('WP_SITEURL')) { define('WP_SITEURL', '${WP_URL}'); }
-        if (!defined('FS_METHOD')) { define('FS_METHOD', '${FS_METHOD:-direct}'); }
-        if (!defined('WP_MEMORY_LIMIT')) { define('WP_MEMORY_LIMIT', '${WP_MEMORY_LIMIT:-256M}'); }
-        if (!defined('WP_DEBUG_LOG')) { define('WP_DEBUG_LOG', ${WP_DEBUG_LOG:-false}); }
-        if (!defined('WP_DEBUG_DISPLAY')) { define('WP_DEBUG_DISPLAY', ${WP_DEBUG_DISPLAY:-false}); }
-        if (!defined('SCRIPT_DEBUG')) { define('SCRIPT_DEBUG', ${SCRIPT_DEBUG:-false}); }
-        if (!defined('SAVEQUERIES')) { define('SAVEQUERIES', ${SAVEQUERIES:-false}); }
+        define('WP_ENVIRONMENT_TYPE', 'development');
     volumes:
       - ./src/wp-core:/var/www/html:z
       - ./src/app:/var/www/html/wp-content:z

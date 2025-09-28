@@ -14,7 +14,7 @@ NC='\033[0m' # No Color
 
 # Helper functions
 print_header() {
-  echo -e "\n${BLUE}=== $1 ===${NC}\n"
+  echo -e "\n${BLUE}=== $1 ===${N      # Note: Container wp-content removal was here but is now handled by bind mount"
 }
 
 print_success() {
@@ -330,6 +330,11 @@ run_setup_scripts() {
         echo "   Default wp-content directory removed"
       fi
 
+      # Also remove from inside the container to ensure volume mount works
+      echo "🔧 Ensuring container volume mount is working..."
+      docker-compose exec -T php rm -rf /var/www/html/wp-content 2>/dev/null || true
+      echo "   Container wp-content directory cleared"
+
       print_success "WordPress installation completed!"
     else
       print_warning "Docker containers not running. WordPress will be installed on first ./start"
@@ -463,6 +468,13 @@ main() {
 
   # Clean up previous run artifacts to ensure permissions are set on next start
   rm -f .permissions_set
+
+  # Remove any existing wp-content directory from wp-core to ensure clean setup
+  if [ -d "src/wp-core/wp-content" ]; then
+    echo "🗑️ Removing existing wp-content directory from wp-core..."
+    rm -rf src/wp-core/wp-content
+    echo "   wp-content directory removed"
+  fi
 
   # Check if .env already exists
   if [ -f ".env" ]; then

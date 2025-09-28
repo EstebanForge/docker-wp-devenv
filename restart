@@ -1,0 +1,5 @@
+#!/bin/bash
+
+# Restart script: Stop and then start the Docker environment
+./stop
+./start

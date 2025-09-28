@@ -51,6 +51,13 @@ echo "Container ready to serve requests"
       wp option update siteurl "$HTTPS_URL" --allow-root >/dev/null 2>&1
       wp plugin delete akismet hello --allow-root >/dev/null 2>&1
 
+      # Remove wp-content created by installation to ensure bind mount works
+      if [ -d "/var/www/html/wp-content" ] && [ ! -L "/var/www/html/wp-content" ]; then
+        echo "🗑️ Removing WordPress-created wp-content to enable bind mount..."
+        rm -rf /var/www/html/wp-content
+        echo "   wp-content directory removed to allow bind mount"
+      fi
+
       echo "🎉 WordPress setup complete!"
     else
       echo "❌ WordPress installation failed - see output above"
