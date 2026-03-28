@@ -10,7 +10,7 @@ if ! docker info >/dev/null 2>&1; then
     if sudo systemctl start docker; then
       echo "   Docker daemon started via systemctl."
       # Wait for Docker to be ready
-      for i in {1..10}; do
+      for _ in {1..10}; do
         if docker info >/dev/null 2>&1; then
           break
         fi
@@ -107,18 +107,39 @@ docker_up_with_retry() {
         project_name=$(basename "$PWD")
     fi
 
-    # Find and stop all running containers that do NOT belong to the current project.
-    local other_containers
-    other_containers=$(docker ps -q --format '{{.Names}}' | grep -v "^${project_name}_")
+    # Only stop containers that actually publish ports used by this environment.
+    local conflicting_ports_regex
+    conflicting_ports_regex='(^|[[:space:]],[[:space:]]|[[:space:]])((0\.0\.0\.0|\[::\])\:)?(80|443|1025|8025)->'
 
-    if [ -n "$other_containers" ]; then
-        echo "   Found running containers from other projects. Stopping them to free up ports..."
-        # The tr command converts the newline-separated list from docker ps into a space-separated list for docker stop.
-        # xargs handles the case where there might be no containers to stop.
-        echo "$other_containers" | tr '\n' ' ' | xargs -r docker stop
-        echo "   Stopped containers: $(echo "$other_containers" | tr '\n' ' ')"
+    local conflicting_containers
+    conflicting_containers=$(
+      docker ps --format '{{.ID}}\t{{.Names}}\t{{.Ports}}' | \
+      awk -F '\t' -v project_name="$project_name" -v ports_regex="$conflicting_ports_regex" '
+        $2 !~ ("^" project_name "_") && $3 ~ ports_regex { print $0 }
+      '
+    )
+
+    if [ -n "$conflicting_containers" ]; then
+        echo "   Found containers publishing ports required by this environment:"
+        echo "$conflicting_containers" | while IFS=$'\t' read -r _ container_name container_ports; do
+            echo "   - ${container_name} (${container_ports})"
+        done
+
+        echo ""
+        read -r -p "Stop only these conflicting containers and retry? (y/N): " response
+        if [[ "$response" =~ ^[Yy]$ ]]; then
+            local conflicting_ids
+            conflicting_ids=$(echo "$conflicting_containers" | awk -F '\t' '{print $1}')
+            echo "$conflicting_ids" | xargs -r docker stop >/dev/null
+            echo "   Conflicting containers stopped."
+        else
+            echo "   Aborting restart attempt. Resolve the port conflicts manually and retry."
+            return 1
+        fi
     else
-        echo "   No other running containers found. The issue might be something other than a port conflict."
+        echo "   No conflicting containers found on ports 80, 443, 1025, or 8025."
+        echo "   The issue might be something other than a port conflict."
+        return 1
     fi
 
     echo -e "\n🔄 Retrying 'docker-compose up'..."
@@ -138,7 +159,7 @@ if [ $# -eq 0 ]; then
     up_status=$?
     was_detached_by_default=true
 else
-    echo "   Passing arguments to docker-compose up: $@"
+    echo "   Passing arguments to docker-compose up: $*"
     docker_up_with_retry "$@"
     up_status=$?
     was_detached_by_default=false
@@ -234,6 +255,7 @@ ensure_wp_config
 
 # Check if WordPress needs to be installed
 if [ -f ".env" ]; then
+  # shellcheck disable=SC1091
   source .env
   if ! ./wp core is-installed >/dev/null 2>&1; then
     echo "📦 WordPress not installed. Installing now..."

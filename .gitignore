@@ -1,113 +1,75 @@
 # WordPress Docker Environment
 
-# Environment Configuration
-.env
-.env.local
-.env.production
-.env.staging
+# Environment configuration and generated setup state
+/.env
+/.env.local
+/.env.production
+/.env.staging
+/SETUP-INFO.md
+/.permissions_set
 
-# Setup information (contains sensitive data)
-SETUP-INFO.md
+# Root-level WordPress/runtime files
+/wp-admin/
+/wp-includes/
+/*.php
+!/.php-cs-fixer.dist.php
+/wp-config.php
+/wp-config-sample.php
+/.htaccess
 
-# WordPress Core Files (managed by Docker)
-# Keep only wp-content customizations
-wp-admin/
-wp-includes/
-*.php
-!.php-cs-fixer.dist.php
-!src/
+# Composer-managed WordPress core
+/src/wp-core/*
+!/src/wp-core/.gitkeep
 
-# WordPress Core (Composer managed - for IDE support only)
-src/wp-core/*
-!src/wp-core/.gitkeep
-
-# WordPress Configuration
-wp-config.php
-wp-config-sample.php
-.htaccess
-
-# Database
-*.sql
-*.sql.gz
-dbdata/
-
-# Docker
-.docker/
-docker-compose.override.yml
-
-# Generated Configuration Files
-nginx-conf/nginx.conf
-.permissions_set
+# Generated config and runtime data
+/docker-compose.override.yml
+/nginx-conf/nginx.conf
+/dbdata/
+/*.sql
+/*.sql.gz
+/logs/
+/tmp/
+/temp/
+/cache/
+/*.tmp
+/backup/
+/backups/
+/*.backup
+/*.bak
 
 # Logs
-*.log
-logs/
-src/debug.log
-src/error_log
+/src/debug.log
+/src/error_log
+/*.log
 
-# SSL Certificates
-*.pem
-*.crt
-*.key
-certbot-etc/
+# Certificates
+/certbot-etc/
+/nginx-conf/*.pem
+/nginx-conf/*.crt
+/nginx-conf/*.key
+/nginx-conf/mkcert/
 
-# IDE and Editor Files
-.vscode/
-.idea/
+# IDE and editor files
+/.vscode/
+/.idea/
 *.swp
 *.swo
 *~
 .DS_Store
 Thumbs.db
 
-# Node.js (if using build tools)
-node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-package-lock.json
-yarn.lock
+# Root dependency/build artifacts only
+/node_modules/
+/npm-debug.log*
+/yarn-debug.log*
+/yarn-error.log*
+/package-lock.json
+/yarn.lock
+/vendor/
+/composer.lock
 
-# PHP Dependencies
-vendor/
-composer.lock
-
-# Temporary Files
-tmp/
-temp/
-cache/
-*.tmp
-
-# Backup Files
-*.backup
-*.bak
-backup/
-backups/
-
-# WordPress Uploads (optional - uncomment if you don't want to track uploads)
-# src/uploads/
-
-# Plugin/Theme Development Exclusions
-src/uploads/
-src/upgrade/
-src/cache/
-
-# Keep Important Directories
-!src/.gitkeep
-!php-conf/
-!nginx-conf/
-!scripts/
-!docs/
-
-# Composer-managed WordPress plugins/themes (installed via WPackagist)
-# Exclude all plugins except our custom ones
-src/app/plugins/*
-!src/app/plugins/.gitkeep
-
-# Exclude all themes except our custom ones
-src/app/themes/*
-!src/app/themes/.gitkeep
-
-# Keep custom development plugins/themes
-!src/app/plugins/custom-plugin/
-!src/app/themes/custom-theme/
+# Generated WordPress content
+/src/uploads/
+/src/upgrade/
+/src/cache/
+/src/upgrade-temp-backup/
