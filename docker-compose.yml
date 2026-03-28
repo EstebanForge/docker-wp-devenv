@@ -50,7 +50,7 @@ services:
         define('WP_ENVIRONMENT_TYPE', 'development');
     volumes:
       - ./src/wp-core:/var/www/html:z
-      - ./src/app:/var/www/html/wp-content:z
+      - ./src/app:/var/www/wp-content:z
       - ./php-conf/custom.ini:/usr/local/etc/php/conf.d/custom.ini:z
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -73,7 +73,7 @@ services:
       - "443:443"
     volumes:
       - ./src/wp-core:/var/www/html:z
-      - ./src/app:/var/www/html/wp-content:z
+      - ./src/app:/var/www/wp-content:z
       - ./nginx-conf:/etc/nginx/conf.d:z
 
     networks:

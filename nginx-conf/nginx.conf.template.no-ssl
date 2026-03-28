@@ -15,10 +15,18 @@ server {
     try_files $uri $uri/ /index.php$is_args$args;
   }
 
+  location ^~ /wp-content/ {
+    alias /var/www/wp-content/;
+    try_files $uri $uri/ =404;
+    expires 1y;
+    add_header Cache-Control "public, immutable";
+    log_not_found off;
+  }
+
   location ~ \.php$ {
     try_files $uri =404;
     fastcgi_split_path_info ^(.+\.php)(/.+)$;
-    fastcgi_pass wordpress:9000;
+    fastcgi_pass php:9000;
     fastcgi_index index.php;
     include fastcgi_params;
     fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
@@ -34,9 +42,5 @@ server {
   }
   location = /robots.txt {
     log_not_found off; access_log off; allow all;
-  }
-  location ~* \.(css|gif|ico|jpeg|jpg|js|png)$ {
-    expires 1y;
-    add_header Cache-Control "public, immutable";
   }
 }

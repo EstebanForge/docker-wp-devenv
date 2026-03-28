@@ -41,13 +41,12 @@ server {
     try_files $uri $uri/ /index.php$is_args$args;
   }
 
-  location /wp-content {
-    root /var/www/html;
-    location ~* \.(css|gif|ico|jpeg|jpg|js|png)$ {
-      expires 1y;
-      add_header Cache-Control "public, immutable";
-      log_not_found off;
-    }
+  location ^~ /wp-content/ {
+    alias /var/www/wp-content/;
+    try_files $uri $uri/ =404;
+    expires 1y;
+    add_header Cache-Control "public, immutable";
+    log_not_found off;
   }
 
   location ~ \.php$ {
