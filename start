@@ -3,29 +3,78 @@
 
 set -e # Exit immediately if a command exits with a non-zero status.
 
-# Check if Docker daemon is running, try to start if not
+# Detect OS and start the appropriate container runtime if not already running
+_wait_for_docker() {
+  for _ in {1..15}; do
+    if docker info >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep 1
+  done
+  return 1
+}
+
 if ! docker info >/dev/null 2>&1; then
-  echo "🔄 Docker daemon is not running. Attempting to start Docker..."
-  if command -v systemctl >/dev/null 2>&1; then
-    if sudo systemctl start docker; then
-      echo "   Docker daemon started via systemctl."
-      # Wait for Docker to be ready
-      for _ in {1..10}; do
-        if docker info >/dev/null 2>&1; then
-          break
+  echo "🔄 Container daemon is not running. Attempting to start..."
+  _os="$(uname -s)"
+
+  if [[ "$_os" == "Darwin" ]]; then
+    # macOS: prefer OrbStack, fall back to Docker Desktop
+    if [[ -d "/Applications/OrbStack.app" ]]; then
+      echo "   Detected OrbStack — launching..."
+      open -a OrbStack
+    else
+      echo "   Launching Docker Desktop..."
+      open -a Docker
+    fi
+    if _wait_for_docker; then
+      echo "   Daemon ready."
+    else
+      echo "🔴 Error: Daemon did not become ready in time. Please start it manually."
+      exit 1
+    fi
+
+  elif [[ "$_os" == "Linux" ]]; then
+    # Linux: prefer Podman (Docker-compat socket), fall back to Docker via systemctl
+    if command -v podman >/dev/null 2>&1; then
+      echo "   Detected Podman — starting podman socket..."
+      # Enable and start the user-level Docker-compat socket (rootless)
+      if systemctl --user enable --now podman.socket 2>/dev/null; then
+        # Point Docker CLI at Podman's socket for this session
+        export DOCKER_HOST="unix://${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/podman/podman.sock"
+        echo "   DOCKER_HOST set to Podman socket: ${DOCKER_HOST}"
+      else
+        # Fallback: start the system-level Podman socket
+        sudo systemctl enable --now podman.socket 2>/dev/null || true
+        export DOCKER_HOST="unix:///run/podman/podman.sock"
+        echo "   DOCKER_HOST set to system Podman socket: ${DOCKER_HOST}"
+      fi
+      if _wait_for_docker; then
+        echo "   Podman daemon ready."
+      else
+        echo "🔴 Error: Podman daemon did not become ready in time. Please start it manually."
+        exit 1
+      fi
+    elif command -v systemctl >/dev/null 2>&1; then
+      echo "   Starting Docker via systemctl..."
+      if sudo systemctl start docker; then
+        if _wait_for_docker; then
+          echo "   Docker daemon started via systemctl."
+        else
+          echo "🔴 Error: Docker daemon did not start successfully."
+          exit 1
         fi
-        sleep 1
-      done
-      if ! docker info >/dev/null 2>&1; then
-        echo "🔴 Error: Docker daemon did not start successfully."
+      else
+        echo "🔴 Error: Failed to start Docker daemon with systemctl."
         exit 1
       fi
     else
-      echo "🔴 Error: Failed to start Docker daemon with systemctl."
+      echo "🔴 Error: No container runtime found. Install Docker or Podman and try again."
       exit 1
     fi
+
   else
-    echo "🔴 Error: Docker is not running and systemctl is not available. Please start Docker manually."
+    echo "🔴 Error: Unsupported OS '${_os}'. Please start your container daemon manually."
     exit 1
   fi
 fi
