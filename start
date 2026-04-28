@@ -139,11 +139,31 @@ done
 docker_up_with_retry() {
     echo "🚀 Bringing up Docker services via docker-compose..."
 
-    # First attempt
-    if docker-compose up "$@"; then
+    local up_log
+    up_log=$(mktemp)
+
+    # First attempt (capture output so we can detect recoverable network errors)
+    if docker-compose up "$@" 2>&1 | tee "$up_log"; then
+        rm -f "$up_log"
         echo "✅ Docker services started successfully on the first attempt."
         return 0
     fi
+
+    # Self-heal: containers can reference a missing Docker network after daemon/runtime resets.
+    if grep -Eiq "failed to set up container networking|network .* not found" "$up_log"; then
+        echo -e "\n🩹 Detected missing Docker network reference. Healing compose state..."
+        docker-compose down --remove-orphans >/dev/null 2>&1 || true
+        docker-compose rm -f >/dev/null 2>&1 || true
+
+        echo "🔄 Retrying 'docker-compose up' after network heal..."
+        if docker-compose up "$@"; then
+            rm -f "$up_log"
+            echo "✅ Docker services started successfully after network heal."
+            return 0
+        fi
+    fi
+
+    rm -f "$up_log"
 
     echo -e "\n🔴 Initial 'docker-compose up' failed. Checking for conflicting containers..."
 
@@ -259,40 +279,47 @@ PERMISSION_FLAG_FILE="${PROJECT_ROOT_DIR}/.permissions_set"
 # We run the script if the flag file doesn't exist (first run) or if --build was passed.
 if [ ! -f "${PERMISSION_FLAG_FILE}" ] || [ "$force_permission_check" = true ]; then
   echo ""
-  if [ ! -f "${PERMISSION_FLAG_FILE}" ]; then
-    echo "🔐 First start detected. Setting up SELinux and applying host permissions for the ./src directory..."
+  host_os="$(uname -s)"
+
+  if [[ "$host_os" != "Linux" ]]; then
+    echo "ℹ️  Non-Linux host detected (${host_os}). Skipping SELinux/Linux permission adjustments."
+    touch "${PERMISSION_FLAG_FILE}"
   else
-    echo "🔐 --build flag detected. Re-setting up SELinux and applying host permissions for the ./src directory..."
-  fi
-
-  # Setup SELinux contexts if needed
-  setup_selinux
-
-  # Fix src directory ownership for container access
-  if [ -d "${PROJECT_ROOT_DIR}/src" ]; then
-    echo "🔧 Setting proper ownership for ./src directory..."
-    if sudo chown -R 1000:1000 "${PROJECT_ROOT_DIR}/src"; then
-      echo "   Ownership set to 1000:1000 for ./src"
+    if [ ! -f "${PERMISSION_FLAG_FILE}" ]; then
+      echo "🔐 First start detected. Setting up SELinux and applying host permissions for the ./src directory..."
     else
-      echo "⚠️  Warning: Failed to set ownership for ./src directory"
-    fi
-  fi
-
-  if [ -f "${PERMISSION_SCRIPT_PATH}" ]; then
-    if [ ! -x "${PERMISSION_SCRIPT_PATH}" ]; then
-      chmod +x "${PERMISSION_SCRIPT_PATH}"
+      echo "🔐 --build flag detected. Re-setting up SELinux and applying host permissions for the ./src directory..."
     fi
 
-    # Execute the permission script and create the flag file on success
-    if "${PERMISSION_SCRIPT_PATH}"; then
-      touch "${PERMISSION_FLAG_FILE}"
-      echo "   SELinux setup and permissions applied successfully."
+    # Setup SELinux contexts if needed
+    setup_selinux
+
+    # Fix src directory ownership for container access
+    if [ -d "${PROJECT_ROOT_DIR}/src" ]; then
+      echo "🔧 Setting proper ownership for ./src directory..."
+      if sudo chown -R 1000:1000 "${PROJECT_ROOT_DIR}/src"; then
+        echo "   Ownership set to 1000:1000 for ./src"
+      else
+        echo "⚠️  Warning: Failed to set ownership for ./src directory"
+      fi
+    fi
+
+    if [ -f "${PERMISSION_SCRIPT_PATH}" ]; then
+      if [ ! -x "${PERMISSION_SCRIPT_PATH}" ]; then
+        chmod +x "${PERMISSION_SCRIPT_PATH}"
+      fi
+
+      # Execute the permission script and create the flag file on success
+      if "${PERMISSION_SCRIPT_PATH}"; then
+        touch "${PERMISSION_FLAG_FILE}"
+        echo "   SELinux setup and permissions applied successfully."
+      else
+        echo "⚠️ Error: Permission script failed. It will be run again on the next start."
+      fi
     else
-      echo "⚠️ Error: Permission script failed. It will be run again on the next start."
+      echo "⚠️ Error: Permission script not found at ${PERMISSION_SCRIPT_PATH}"
+      exit 1
     fi
-  else
-    echo "⚠️ Error: Permission script not found at ${PERMISSION_SCRIPT_PATH}"
-    exit 1
   fi
 else
   echo ""
@@ -373,7 +400,7 @@ if [ -f ".env" ]; then
 fi
 
 echo ""
-echo "🎉 Docker environment is up and SELinux setup/permissions have been processed."
+echo "🎉 Docker environment is up and host permission setup has been processed."
 
 # Determine if services are running in detached mode for the final message
 running_detached=false

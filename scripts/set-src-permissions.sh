@@ -7,6 +7,11 @@ SRC_DIR="${PROJECT_ROOT_DIR}/src"
 
 echo "🚀 Starting host permission setup for '${SRC_DIR}'..."
 
+if [[ "$(uname -s)" != "Linux" ]]; then
+  echo "ℹ️  Non-Linux host detected. Skipping Linux-specific permission setup."
+  exit 0
+fi
+
 # Check if src directory exists
 if [ ! -d "${SRC_DIR}" ]; then
   echo "❌ Error: Directory '${SRC_DIR}' does not exist. Please create it first or ensure your docker-compose setup creates it."
