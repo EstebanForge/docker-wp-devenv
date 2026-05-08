@@ -1,7 +1,7 @@
-# Composer & WPackagist Integration
+# Composer & WP Packages Integration
 
 ## Overview
-This project uses Composer to manage WordPress plugins and themes via WPackagist, providing version control and dependency management for WordPress packages. It also includes WordPress core files for IDE support and autocompletion.
+This project uses Composer to manage WordPress plugins and themes via WP Packages, providing version control and dependency management for WordPress packages. It also includes WordPress core files for IDE support and autocompletion.
 
 ## Setup
 
@@ -27,36 +27,36 @@ This provides:
 - ✅ Class and method documentation
 - ✅ Static analysis support
 
-## WPackagist Usage
+## WP Packages Usage
 
 ### Installing Plugins
 ```bash
 # Install specific plugin
-composer require wpackagist-plugin/advanced-custom-fields
+composer require wp-plugin/advanced-custom-fields
 
 # Install multiple plugins
-composer require wpackagist-plugin/contact-form-7 wpackagist-plugin/yoast-seo
+composer require wp-plugin/contact-form-7 wp-plugin/yoast-seo
 
 # Install specific version
-composer require wpackagist-plugin/elementor:^3.0
+composer require wp-plugin/elementor:^3.0
 ```
 
 ### Installing Themes
 ```bash
 # Install theme
-composer require wpackagist-theme/twentytwentyfive
+composer require wp-theme/twentytwentyfive
 
 # Install custom theme with version
-composer require wpackagist-theme/storefront:^4.0
+composer require wp-theme/storefront:^4.0
 ```
 
 ### Removing Packages
 ```bash
 # Remove plugin
-composer remove wpackagist-plugin/hello-dolly
+composer remove wp-plugin/hello-dolly
 
 # Remove theme
-composer remove wpackagist-theme/twentytwentythree
+composer remove wp-theme/twentytwentythree
 ```
 
 ## Development Tools
@@ -97,10 +97,10 @@ Create custom packages with `custom-` prefix:
 src/
 ├── plugins/
 │   ├── custom-api-plugin/     # Custom development (tracked in Git)
-│   └── contact-form-7/        # WPackagist managed (ignored in Git)
+│   └── contact-form-7/        # WP Packages managed (ignored in Git)
 └── themes/
     ├── custom-theme/          # Custom development (tracked in Git)
-    └── twentytwentyfive/      # WPackagist managed (ignored in Git)
+    └── twentytwentyfive/      # WP Packages managed (ignored in Git)
 ```
 
 ### Autoloading
@@ -144,9 +144,9 @@ The Docker environment automatically:
 ```json
 {
     "require": {
-        "wpackagist-plugin/advanced-custom-fields": "^6.0",
-        "wpackagist-plugin/contact-form-7": "^5.8",
-        "wpackagist-theme/twentytwentyfive": "^1.0"
+        "wp-plugin/advanced-custom-fields": "^6.0",
+        "wp-plugin/contact-form-7": "^5.8",
+        "wp-theme/twentytwentyfive": "^1.0"
     }
 }
 ```

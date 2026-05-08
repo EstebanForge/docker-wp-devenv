@@ -71,7 +71,7 @@ sudo chmod -R 664 src/**/*.php
 sudo usermod -aG $(id -gn 1000) $USER
 
 # Or fix ownership back to you
-sudo chown -R $USER:$USER src/
+sudo chown -R $USER:$(id -gn) src/
 ```
 
 ## SELinux Considerations:

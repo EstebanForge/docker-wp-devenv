@@ -220,14 +220,18 @@ run_setup_scripts() {
     print_warning "No .sh files found in scripts/ to make executable."
   fi
 
-  # Run Fedora-specific setup if available
-  if [ -f "scripts/setup-fedora.sh" ]; then
+  # Run OS-specific setup
+  if [ -f "scripts/setup-fedora.sh" ] && [[ "$(uname -s)" == "Linux" ]]; then
     print_success "Running Fedora setup..."
     ./scripts/setup-fedora.sh
   else
-    print_warning "scripts/setup-fedora.sh not found, creating directories manually..."
-    mkdir -p src/{themes,plugins,uploads,mu-plugins}
+    print_warning "Non-Linux system detected. Creating directories manually..."
+    mkdir -p src/{wp-core,themes,plugins,uploads,mu-plugins}
     mkdir -p php-conf nginx-conf
+    # Set ownership using primary group (macOS compatible)
+    chown -R "$USER:$(id -gn)" src/ 2>/dev/null || true
+    chown -R "$USER:$(id -gn)" php-conf/ 2>/dev/null || true
+    chown -R "$USER:$(id -gn)" nginx-conf/ 2>/dev/null || true
     chmod -R 775 src/
   fi
 
@@ -399,10 +403,10 @@ docker-compose up -d
 #### Package Management
 \`\`\`bash
 # Install plugins via Composer
-composer require wpackagist-plugin/plugin-name
+composer require wp-plugin/plugin-name
 
 # Install themes via Composer
-composer require wpackagist-theme/theme-name
+composer require wp-theme/theme-name
 
 # Run code quality checks
 composer run quality
@@ -449,7 +453,7 @@ display_final_instructions() {
   echo -e "  Stop environment: ${BLUE}docker-compose down${NC}"
   echo -e "  Restart environment: ${BLUE}docker-compose restart${NC}"
   echo -e "  Run WP-CLI: ${BLUE}./wp <command>${NC}"
-  echo -e "  Install plugins: ${BLUE}composer require wpackagist-plugin/plugin-name${NC}"
+  echo -e "  Install plugins: ${BLUE}composer require wp-plugin/plugin-name${NC}"
   echo -e "  Code quality: ${BLUE}composer run quality${NC}"
   echo ""
   echo -e "${YELLOW}📋 Configuration saved to .env file${NC}"

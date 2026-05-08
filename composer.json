@@ -10,25 +10,25 @@
   "type": "project",
   "license": "MIT",
   "require": {
-    "php": ">=8.2",
+    "php": "^8.3",
     "composer/installers": "^2.0",
     "johnpbloch/wordpress-core-installer": "*",
     "johnpbloch/wordpress-core": "*",
-    "wpackagist-plugin/plugin-check": "*",
-    "wpackagist-plugin/transients-manager": "*",
-    "wpackagist-plugin/wp-crontrol": "*",
-    "wpackagist-plugin/query-monitor": "*",
-    "wpackagist-plugin/classic-editor": "*",
-    "wpackagist-theme/twentytwentyfive": "*"
+    "wp-plugin/plugin-check": "*",
+    "wp-plugin/transients-manager": "*",
+    "wp-plugin/wp-crontrol": "*",
+    "wp-plugin/query-monitor": "*",
+    "wp-plugin/classic-editor": "*",
+    "wp-theme/twentytwentyfive": "*"
   },
   "require-dev": {},
   "repositories": [
     {
       "type": "composer",
-      "url": "https://wpackagist.org",
+      "url": "https://repo.wp-packages.org",
       "only": [
-        "wpackagist-plugin/*",
-        "wpackagist-theme/*"
+        "wp-plugin/*",
+        "wp-theme/*"
       ]
     }
   ],
@@ -54,7 +54,10 @@
     },
     "optimize-autoloader": true,
     "preferred-install": "dist",
-    "sort-packages": true
+    "sort-packages": true,
+    "platform": {
+      "php": "8.3"
+    }
   },
   "scripts": {},
   "minimum-stability": "stable",

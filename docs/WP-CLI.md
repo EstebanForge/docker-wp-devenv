@@ -137,7 +137,7 @@ This project includes a WP-CLI wrapper script that allows you to run WordPress C
 ### With Composer
 ```bash
 # Install plugin via Composer, then activate via WP-CLI
-composer require wpackagist-plugin/advanced-custom-fields
+composer require wp-plugin/advanced-custom-fields
 ./wp plugin activate advanced-custom-fields
 ```
 
