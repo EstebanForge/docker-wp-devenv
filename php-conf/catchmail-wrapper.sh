@@ -1,8 +1,11 @@
 #!/bin/sh
-# This wrapper script ensures the correct RubyGems environment is set up
-# before executing the catchmail script for PHP's sendmail_path.
-
-export GEM_PATH="/var/www/.local/share/gem/ruby/3.1.0:/var/lib/gems/3.1.0:/usr/local/lib/ruby/gems/3.1.0:/usr/lib/ruby/gems/3.1.0:/usr/lib/x86_64-linux-gnu/ruby/gems/3.1.0:/usr/share/rubygems-integration/3.1.0:/usr/share/rubygems-integration/all:/usr/lib/x86_64-linux-gnu/rubygems-integration/3.1.0"
+# Wrapper for PHP's sendmail_path. Delegates to catchmail (Ruby mail gem).
+#
+# We deliberately do NOT hardcode GEM_PATH here. A previous version pinned a
+# Ruby 3.1.0 gem path, but the image ships Ruby 3.3.x (gems under .../3.3.0),
+# so the override hid net-smtp and crashed every send with
+# `Could not find 'net-smtp'`. Letting Ruby resolve its own default gem paths
+# (via Gem.default_path / rubygems-integration) is version-agnostic and correct.
 
 # Execute catchmail, passing along all arguments from PHP.
 exec /usr/local/bin/catchmail "$@"
