@@ -9,7 +9,7 @@ echo "🚀 Starting WordPress installation..."
 
 # Wait for database to be ready
 echo "⏳ Waiting for database connection..."
-while ! wp db check --allow-root --debug; do
+while ! mysqladmin --skip-ssl -h "${WORDPRESS_DB_HOST:-db}" -u "${WORDPRESS_DB_USER:-$MYSQL_USER}" -p"${WORDPRESS_DB_PASSWORD:-$MYSQL_PASSWORD}" ping >/dev/null 2>&1; do
   echo "   Database not ready, waiting 3 seconds..."
   sleep 3
 done
