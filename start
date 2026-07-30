@@ -134,91 +134,164 @@ for arg in "$@"; do
   fi
 done
 
-# Check if any arguments were passed
-# Function to bring up Docker services with a retry mechanism for port conflicts.
-docker_up_with_retry() {
-    echo "🚀 Bringing up Docker services via docker-compose..."
+# Resolve a "port is already allocated" conflict: parse the port(s) Docker failed
+# to bind from the compose log, find the container(s) bound to each, stop them
+# (never this project's own containers), and return 0 so the caller retries.
+# Returns 1 when no container holds the port (host process or stale proxy),
+# after printing an actionable manual-fix message.
+_resolve_port_conflict() {
+    local up_log="$1"
 
-    local up_log
-    up_log=$(mktemp)
+    # Parse failing ports from lines like:
+    #   "Bind for :::80 failed: port is already allocated"
+    #   "Bind for 0.0.0.0:443 failed: ..."
+    #   "Bind for [::]:80 failed: ..."
+    # Falls back to the stack's declared ports if parsing finds nothing.
+    local failed_ports
+    failed_ports=$(
+        grep -Eo 'Bind for [^[:space:]]+ failed' "$up_log" \
+            | sed -E 's/.*:([0-9]+) failed.*/\1/' \
+            | sort -u | tr '\n' ' '
+    )
 
-    # First attempt (capture output so we can detect recoverable network errors)
-    if docker-compose up "$@" 2>&1 | tee "$up_log"; then
-        rm -f "$up_log"
-        echo "✅ Docker services started successfully on the first attempt."
-        return 0
+    # Always scan the full set of host ports this stack publishes, unioned
+    # with any extra ports Docker named in the error. A sibling stack can hold
+    # several of our ports at once (e.g. :80 and :1025); freeing them one at a
+    # time lets the next conflict surface on the following retry and exhaust
+    # it. Resolve every conflict in a single pass instead.
+    local stack_ports='80|443|1025|8025'
+    local ports_alt="$stack_ports"
+    if [ -n "$failed_ports" ]; then
+        local extra
+        extra=$(echo "$failed_ports" | tr ' ' '\n' | grep -v '^$' | paste -sd '|' -)
+        ports_alt="${stack_ports}|${extra}"
+        echo -e "\n🔌 Port conflict detected on host port(s): ${failed_ports}"
+        echo "   Freeing every foreign container on stack ports (${stack_ports//|/, }) in one pass."
+    else
+        echo -e "\n🔌 Port conflict detected (could not parse port; scanning stack ports ${stack_ports//|/, })."
     fi
 
-    # Self-heal: containers can reference a missing Docker network after daemon/runtime resets.
-    if grep -Eiq "failed to set up container networking|network .* not found" "$up_log"; then
-        echo -e "\n🩹 Detected missing Docker network reference. Healing compose state..."
-        docker-compose down --remove-orphans >/dev/null 2>&1 || true
-        docker-compose rm -f >/dev/null 2>&1 || true
-
-        echo "🔄 Retrying 'docker-compose up' after network heal..."
-        if docker-compose up "$@"; then
-            rm -f "$up_log"
-            echo "✅ Docker services started successfully after network heal."
-            return 0
-        fi
-    fi
-
-    rm -f "$up_log"
-
-    echo -e "\n🔴 Initial 'docker-compose up' failed. Checking for conflicting containers..."
-
-    # Identify the project name from the current directory to exclude its containers from being stopped.
-    # Assumes the .env file is correctly setting COMPOSE_PROJECT_NAME.
+    # Project name to exclude our own containers. Compose v2 names containers
+    # "<project>-<service>-N" (hyphen); older v1 used "<project>_<service>_N".
+    # Match either separator so we never stop this stack's own containers.
     local project_name
-    project_name=$(grep COMPOSE_PROJECT_NAME .env | cut -d '=' -f 2)
+    project_name=$(grep COMPOSE_PROJECT_NAME .env 2>/dev/null | head -1 | cut -d '=' -f 2 | tr -d '[:space:]"'"'")
     if [ -z "$project_name" ]; then
-        # Fallback to directory name if .env isn't set up as expected.
         project_name=$(basename "$PWD")
     fi
 
-    # Only stop containers that actually publish ports used by this environment.
-    local conflicting_ports_regex
-    conflicting_ports_regex='(^|[[:space:]],[[:space:]]|[[:space:]])((0\.0\.0\.0|\[::\])\:)?(80|443|1025|8025)->'
-
-    local conflicting_containers
-    conflicting_containers=$(
-      docker ps --format '{{.ID}}\t{{.Names}}\t{{.Ports}}' | \
-      awk -F '\t' -v project_name="$project_name" -v ports_regex="$conflicting_ports_regex" '
-        $2 !~ ("^" project_name "_") && $3 ~ ports_regex { print $0 }
-      '
+    # Find containers (excluding ours) that publish one of the target ports as a
+    # host bind. The Ports column looks like "0.0.0.0:80->80/tcp, :::80->80/tcp".
+    # Match "<port>->" so a bind like :8080-> is never confused with :80->.
+    local matches
+    matches=$(
+        docker ps --format '{{.ID}}\t{{.Names}}\t{{.Ports}}' \
+            | awk -F '\t' -v proj="^${project_name}[-_]" -v ports="(:|[[:space:]])(${ports_alt})->" '
+                $2 !~ proj && $3 ~ ports { print $0 }
+            '
     )
 
-    if [ -n "$conflicting_containers" ]; then
-        echo "   Found containers publishing ports required by this environment:"
-        echo "$conflicting_containers" | while IFS=$'\t' read -r _ container_name container_ports; do
-            echo "   - ${container_name} (${container_ports})"
+    if [ -n "$matches" ]; then
+        echo "   Stopping the container(s) holding the taken port(s):"
+        echo "$matches" | while IFS=$'\t' read -r _ cname cports; do
+            echo "   - ${cname} (${cports})"
         done
 
-        echo ""
-        read -r -p "Stop only these conflicting containers and retry? (y/N): " response
-        if [[ "$response" =~ ^[Yy]$ ]]; then
-            local conflicting_ids
-            conflicting_ids=$(echo "$conflicting_containers" | awk -F '\t' '{print $1}')
-            echo "$conflicting_ids" | xargs -r docker stop >/dev/null
-            echo "   Conflicting containers stopped."
-        else
-            echo "   Aborting restart attempt. Resolve the port conflicts manually and retry."
-            return 1
-        fi
-    else
-        echo "   No conflicting containers found on ports 80, 443, 1025, or 8025."
-        echo "   The issue might be something other than a port conflict."
-        return 1
+        local ids
+        ids=$(echo "$matches" | awk -F '\t' '{print $1}')
+        echo "$ids" | xargs -r docker stop >/dev/null
+        echo "   Conflicting container(s) stopped. Restart them manually if you need them."
+        return 0
     fi
 
-    echo -e "\n🔄 Retrying 'docker-compose up'..."
-    if docker-compose up "$@"; then
-        echo "✅ Docker services started successfully on the second attempt."
-        return 0
-    else
-        echo -e "\n🔴 'docker-compose up' failed on the second attempt. Please check the logs above for errors."
-        return 1
-    fi
+    # No container owns the port: a host process (apache2/nginx/httpd) or a
+    # wedged docker-proxy is holding it. Surface a precise manual fix.
+    local first_port
+    first_port=$(echo "${failed_ports}" | awk '{print $1}')
+    [ -z "$first_port" ] && first_port=80
+    echo "   No Docker container is bound to the conflicting port."
+    echo "   A host process (apache2, nginx, httpd) or a stale docker-proxy likely holds it. Find and stop it:"
+    echo "     sudo ss -ltnp 'sport = :${first_port}'   # show the PID holding port ${first_port}"
+    echo "     sudo systemctl stop apache2 nginx        # common culprits"
+    echo "     docker system prune -f                   # clear stale docker-proxy state"
+    return 1
+}
+
+# Bring up Docker services with a bounded retry loop that self-heals port
+# and network conflicts. A stack can hit several conflicts at once (e.g. a
+# sibling stack holding :80, :443 and :1025); each `docker-compose up` failure
+# reveals only the next blocker, so we loop until the stack is up, nothing
+# more can be auto-healed, or the attempt cap is reached.
+docker_up_with_retry() {
+    echo "🚀 Bringing up Docker services via docker-compose..."
+
+    local up_log rc i healed
+    local max_attempts=4
+    up_log=$(mktemp)
+
+    for (( i=1; i<=max_attempts; i++ )); do
+        # CRITICAL: a bare `cmd | tee` reports tee's exit status (always 0),
+        # masking a docker-compose failure and making the script falsely print
+        # "started successfully". Disable set -e and enable pipefail so $?
+        # reflects docker-compose, while still streaming live output.
+        set +e
+        set -o pipefail
+        docker-compose up "$@" 2>&1 | tee "$up_log"
+        rc=$?
+        set +o pipefail
+        set -e
+
+        if [ "$rc" -eq 0 ]; then
+            rm -f "$up_log"
+            if [ "$i" -eq 1 ]; then
+                echo "✅ Docker services started successfully on the first attempt."
+            else
+                echo "✅ Docker services started successfully (attempt ${i} of ${max_attempts})."
+            fi
+            return 0
+        fi
+
+        # Pick the self-heal that matches THIS failure. Order matters: a port
+        # bind failure during network setup is reported as "failed to set up
+        # container networking ... Bind for <port> failed", containing both
+        # phrases. The port bind is the actionable root cause, so check it
+        # first; a genuine missing-network (no port bind) falls through to the
+        # network heal.
+        healed=0
+        if grep -Eiq "port is already allocated|Bind for .* failed" "$up_log" 2>/dev/null; then
+            # _resolve_port_conflict stops every foreign container holding a
+            # stack port. It returns 1 when a host process (not a container)
+            # owns the port, which cannot be auto-fixed.
+            if _resolve_port_conflict "$up_log"; then
+                healed=1
+            else
+                rm -f "$up_log"
+                echo -e "\n🔴 'docker-compose up' failed; conflicting port is held by a host process, not a container. See the guidance above."
+                return 1
+            fi
+        elif grep -Eiq "failed to set up container networking|network .* not found" "$up_log" 2>/dev/null; then
+            # Containers can reference a missing Docker network after daemon
+            # resets. Tear the partial stack down and retry.
+            echo -e "\n🩹 Detected missing Docker network reference. Healing compose state..."
+            docker-compose down --remove-orphans >/dev/null 2>&1 || true
+            docker-compose rm -f >/dev/null 2>&1 || true
+            healed=1
+        fi
+
+        if [ "$healed" -eq 0 ]; then
+            rm -f "$up_log"
+            echo -e "\n🔴 'docker-compose up' failed for a reason other than a port or network conflict. Check the logs above."
+            return 1
+        fi
+
+        if [ "$i" -lt "$max_attempts" ]; then
+            echo -e "\n🔄 Retrying 'docker-compose up' (attempt $((i + 1)) of ${max_attempts})..."
+        fi
+    done
+
+    rm -f "$up_log"
+    echo -e "\n🔴 'docker-compose up' still failing after ${max_attempts} attempts. Check the logs above."
+    return 1
 }
 
 # Determine arguments and call the retry function.
