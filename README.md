@@ -26,10 +26,9 @@ A production-ready WordPress development environment using Docker, optimized for
 ### Installation
 
 1. **Clone/Download** this repository
-2. **Run the setup script**:
+2. **Run the setup command**:
    ```bash
-   chmod +x setup.sh
-   ./setup.sh
+   ./devenv setup
    ```
 3. **Follow the interactive prompts** to configure:
    - Local domain (e.g., wp.localhost)
@@ -39,8 +38,7 @@ A production-ready WordPress development environment using Docker, optimized for
 
 4. **Start the environment**:
    ```bash
-   chmod +x start # Make sure it's executable (run once)
-   ./start        # Starts services in detached mode by default
+   ./devenv start          # Starts services in detached mode by default
    ```
    This script will start the Docker containers and then automatically run a sub-script (`./scripts/set-src-permissions.sh`) to configure necessary host permissions for the `./src` directory, ensuring compatibility with SELinux and shared write access.
 
@@ -117,8 +115,9 @@ The setup script will:
 ├── nginx-conf/            # Nginx configuration (also stores generated SSL certs)
 ├── docker-compose.yml    # Docker services
 ├── .env.example          # Environment configuration template
-├── setup              # First-time setup script
-└── start              # Recommended script to start environment and set permissions
+├── devenv                # Single entrypoint: ./devenv <setup|start|stop|restart|rebuild|wp|status|logs>
+├── wp                    # Standalone WP-CLI wrapper inside the php container
+└── lib/                  # Command scripts run by devenv (cmd-<name>.sh)
 ```
 
 ## Environment Configuration
@@ -156,14 +155,14 @@ This is incredibly useful for testing contact forms, user notifications, and oth
 ```bash
 # Start environment (recommended method)
 # (Make sure it's executable: chmod +x start)
-./start          # Starts services in detached mode by default
+./devenv start          # Starts services in detached mode by default
 
 # To pass arguments (e.g., build, specific services, or run in foreground):
-./start --build              # Builds images and starts in detached mode (due to default)
-./start --build -d           # Explicitly detached with build
-./start up                   # Starts in foreground (passing 'up' as an arg)
-./start wordpress webserver  # Starts specific services (will be detached by default if no other args prevent it)
-                                # If you want specific services in foreground: ./start wordpress webserver up (or similar non-detaching arg)
+./devenv start --build              # Builds images and starts in detached mode (due to default)
+./devenv start --build -d           # Explicitly detached with build
+./devenv start up                   # Starts in foreground (passing 'up' as an arg)
+./devenv start wordpress webserver  # Starts specific services (will be detached by default if no other args prevent it)
+                                # If you want specific services in foreground: ./devenv start wordpress webserver up (or similar non-detaching arg)
 
 # If you need to use docker-compose directly (e.g., for specific sub-commands not covered by start):
 # docker-compose up -d
@@ -215,12 +214,12 @@ If you encounter permission issues with the `./src` directory (e.g., WordPress c
 ```bash
 ./scripts/set-src-permissions.sh
 ```
-This script is designed to set appropriate ownership for your host user and apply ACLs (or standard permissions as a fallback) for the `www-data` group used by WordPress inside the container. It's also called automatically if you use `./start`.
+This script is designed to set appropriate ownership for your host user and apply ACLs (or standard permissions as a fallback) for the `www-data` group used by WordPress inside the container. It's also called automatically if you use `./devenv start`.
 
 ### SELinux Issues (Fedora/RHEL)
 The Docker Compose configuration uses the `:Z` flag for the `./src` volume mount (`./src:/var/www/html/wp-content:Z`), which tells Docker to relabel the host directory so the container can use it with SELinux.
 
-Additionally, the `./scripts/set-src-permissions` script (run automatically by `./start`) further helps by setting appropriate file ACLs (Access Control Lists) or standard Unix permissions that work well with SELinux and allow shared write access between your host user and the `www-data` user in the container.
+Additionally, the `./scripts/set-src-permissions` script (run automatically by `./devenv start`) further helps by setting appropriate file ACLs (Access Control Lists) or standard Unix permissions that work well with SELinux and allow shared write access between your host user and the `www-data` user in the container.
 
 If you still encounter SELinux denials related to `./src`:
 ```bash
@@ -245,7 +244,7 @@ echo "127.0.0.1 your-domain.localhost" | sudo tee -a /etc/hosts
 ### Change Domain
 1. Update `WP_DOMAIN` in `.env`
 2. Regenerate configs: `./generate-nginx-config.sh`
-3. Update hosts: `./setup-local-domain.sh`
+3. Update hosts: `./scripts/setup-local-domain.sh`
 4. Restart: `docker-compose restart`
 
 ### Add Custom PHP Settings

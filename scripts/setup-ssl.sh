@@ -7,7 +7,10 @@ set -e
 
 # Load environment variables from .env file
 if [ -f .env ]; then
-  export $(cat .env | grep -v '^#' | xargs)
+  set -a
+  # shellcheck disable=SC1091
+  source .env
+  set +a
 else
   echo "❌ .env file not found! Please create it first."
   exit 1

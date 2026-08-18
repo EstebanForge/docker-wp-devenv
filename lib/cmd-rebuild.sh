@@ -4,7 +4,7 @@
 set -e # Exit immediately if a command exits with a non-zero status.
 
 # Get the directory where this script is located (should be project root)
-PROJECT_ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 echo "🔄 Starting full rebuild process..."
 
@@ -42,7 +42,7 @@ if ! docker info >/dev/null 2>&1; then
     if sudo systemctl start docker; then
       echo "   Docker daemon started via systemctl."
       # Wait for Docker to be ready
-      for i in {1..10}; do
+      for _ in {1..10}; do
         if docker info >/dev/null 2>&1; then
           break
         fi
@@ -89,7 +89,7 @@ fi
 
 # Step 7: Run the start script to handle permissions and WordPress setup
 echo "🚀 Running start script for permissions and WordPress setup..."
-if ./start; then
+if bash "${PROJECT_ROOT_DIR}/lib/cmd-start.sh"; then
     echo "✅ Start script completed successfully"
 else
     echo "🔴 Error: Start script failed"

@@ -21,7 +21,7 @@ FILE="${1:-}"
 if [[ -z "$FILE" ]]; then
 	echo "Usage: $0 <backup-file>" >&2
 	echo "Available backups:" >&2
-	ls -1 "$REPO_ROOT/backups/"*.gz 2>/dev/null | sed 's|^|  |' >&2 || echo "  (none yet)" >&2
+	find "$REPO_ROOT/backups" -maxdepth 1 -name "*.gz" -printf "  %f\\n" 2>/dev/null >&2 || true
 	exit 1
 fi
 
@@ -44,7 +44,7 @@ fi
 DB_NAME="$(docker compose exec -T db printenv MYSQL_DATABASE </dev/null | tr -d '\r\n')"
 
 echo "WARNING: this will OVERWRITE the '$DB_NAME' database."
-echo "Source:  ${FILE#$REPO_ROOT/}"
+echo "Source:  ${FILE#"$REPO_ROOT"/}"
 read -r -p "Continue? [y/N] " ans
 [[ "$ans" =~ ^[Yy]$ ]] || { echo "Aborted."; exit 1; }
 
@@ -57,4 +57,4 @@ else
 		'exec mysql -u root -p"$MYSQL_ROOT_PASSWORD" "$MYSQL_DATABASE"'
 fi
 
-echo "Restore complete: ${FILE#$REPO_ROOT/}"
+echo "Restore complete: ${FILE#"$REPO_ROOT"/}"

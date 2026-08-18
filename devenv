@@ -1,0 +1,136 @@
+#!/usr/bin/env bash
+#
+# devenv - single entrypoint for the WordPress Docker development environment.
+#
+# Usage:
+#   ./devenv <command> [args...]   run one command
+#   ./devenv                       interactive menu (TTY only)
+#   ./devenv help                  show help
+#
+# Commands:
+#   setup      First-time interactive setup (config, SSL, wp-config, install)
+#   start      Start services (defaults to detached mode); extra args go to 'docker-compose up'
+#   stop       Stop services; extra args go to 'docker-compose stop'
+#   restart    Full compose reset (down --remove-orphans), then start; extra args go to start
+#   rebuild    Nuke containers, volumes and images, rebuild from scratch, then start
+#   wp <cmd>   Run WP-CLI inside the php container (delegates to ./wp)
+#   status     Show container status (docker-compose ps)
+#   logs       Follow service logs (docker-compose logs -f); extra args pass through
+#   help       Show this help
+
+set -euo pipefail
+
+DEVENV_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+export DEVENV_ROOT
+
+# Commands implemented as standalone scripts in lib/.
+run_script() {
+  bash "${DEVENV_ROOT}/lib/cmd-$1.sh" "${@:2}"
+}
+
+cmd_start()   { run_script start "$@"; }
+cmd_stop()    { run_script stop "$@"; }
+cmd_restart() { run_script restart "$@"; }
+cmd_rebuild() { run_script rebuild "$@"; }
+cmd_setup()   { run_script setup "$@"; }
+
+cmd_wp() {
+  exec "${DEVENV_ROOT}/wp" "$@"
+}
+
+cmd_status() {
+  cd "${DEVENV_ROOT}"
+  docker-compose ps "$@"
+}
+
+cmd_logs() {
+  cd "${DEVENV_ROOT}"
+  if [ $# -eq 0 ]; then
+    docker-compose logs -f
+  else
+    docker-compose logs "$@"
+  fi
+}
+
+cmd_help() {
+  grep '^#' "$0" | sed 's/^# \{0,1\}//' | tail -n +2
+}
+
+usage() {
+  echo "Usage: ./devenv <command> [args...]"
+  echo "Commands: setup start stop restart rebuild wp status logs help"
+  echo "Run './devenv' with no arguments for the interactive menu."
+}
+
+# Interactive menu (TTY only). Loops until quit.
+menu() {
+  if [ ! -t 0 ] || [ ! -t 1 ]; then
+    usage >&2
+    echo "Error: no command given and stdin/stdout is not a terminal." >&2
+    exit 1
+  fi
+
+  while true; do
+    echo ""
+    echo "WordPress Docker Environment"
+    echo "============================"
+    echo "  1) start    Start services"
+    echo "  2) stop     Stop services"
+    echo "  3) restart  Restart (full compose reset)"
+    echo "  4) rebuild  Full rebuild from scratch (removes data)"
+    echo "  5) setup    First-time interactive setup"
+    echo "  6) wp       Run a WP-CLI command (prompts for args)"
+    echo "  7) status   Show container status"
+    echo "  8) logs     Follow service logs (Ctrl+C to exit)"
+    echo "  9) help     Show help"
+    echo "  q) quit"
+    echo ""
+    read -r -p "Select an option: " choice
+    case "$choice" in
+      1) cmd_start ;;
+      2) cmd_stop ;;
+      3) cmd_restart ;;
+      4)
+        read -r -p "Rebuild deletes all containers, volumes and images. Continue? (y/N): " confirm
+        [[ "$confirm" =~ ^[Yy]$ ]] && cmd_rebuild
+        ;;
+      5) cmd_setup ;;
+      6)
+        read -r -p "WP-CLI arguments: " -a wp_args
+        [ ${#wp_args[@]} -gt 0 ] && cmd_wp "${wp_args[@]}"
+        ;;
+      7) cmd_status ;;
+      8) cmd_logs ;;
+      9) cmd_help ;;
+      q|Q) break ;;
+      *) echo "Invalid option: ${choice}" ;;
+    esac
+  done
+}
+
+# --- Dispatch ---
+
+if [ $# -eq 0 ]; then
+  menu
+  exit 0
+fi
+
+command="$1"
+shift
+
+case "$command" in
+  setup)    cmd_setup "$@" ;;
+  start)    cmd_start "$@" ;;
+  stop)     cmd_stop "$@" ;;
+  restart)  cmd_restart "$@" ;;
+  rebuild)  cmd_rebuild "$@" ;;
+  wp)       cmd_wp "$@" ;;
+  status)   cmd_status "$@" ;;
+  logs)     cmd_logs "$@" ;;
+  help|-h|--help) cmd_help ;;
+  *)
+    echo "Error: unknown command '${command}'." >&2
+    usage >&2
+    exit 1
+    ;;
+esac

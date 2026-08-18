@@ -26,6 +26,7 @@ fi
 
 # Check latest available version from WordPress API
 echo "🌐 Latest WordPress version:"
+# shellcheck disable=SC2016
 curl -s "https://api.wordpress.org/core/version-check/1.7/" |
   php -r '$json = json_decode(file_get_contents("php://stdin"), true); echo "   " . $json["offers"][0]["version"] . "\n";' 2>/dev/null ||
   echo "   Unable to fetch from API"

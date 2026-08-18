@@ -20,9 +20,9 @@ mkdir -p nginx-conf
 
 # Set proper ownership (current user)
 echo "👤 Setting directory ownership..."
-sudo chown -R $USER:$(id -gn) src/
-sudo chown -R $USER:$(id -gn) php-conf/
-sudo chown -R $USER:$(id -gn) nginx-conf/
+sudo chown -R "$USER:$(id -gn)" src/
+sudo chown -R "$USER:$(id -gn)" php-conf/
+sudo chown -R "$USER:$(id -gn)" nginx-conf/
 
 # Set proper permissions for WordPress
 echo "🔐 Setting directory permissions..."
@@ -59,9 +59,9 @@ if [[ "$(uname -s)" == "Linux" ]]; then
   fi
 
   # Add user to docker group if not already
-  if ! groups $USER | grep -q docker; then
+  if ! groups "$USER" | grep -q docker; then
     echo "👥 Adding user to docker group..."
-    sudo usermod -aG docker $USER
+    sudo usermod -aG docker "$USER"
     echo "⚠️  You need to log out and back in for docker group changes to take effect"
     echo "   Or run: newgrp docker"
   fi
@@ -77,7 +77,8 @@ touch src/mu-plugins/.gitkeep
 echo "✅ Fedora 42 setup completed!"
 echo ""
 echo "🔧 If you encounter permission issues:"
-echo "   - Run: sudo chown -R $USER:$(id -gn) src/"
+owner="$USER:$(id -gn)"
+echo "   - Run: sudo chown -R ${owner} src/"
 echo "   - Or run: sudo chmod -R 755 src/"
 echo ""
 if [[ "$(uname -s)" == "Linux" ]]; then

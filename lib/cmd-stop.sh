@@ -4,7 +4,7 @@
 set -e # Exit immediately if a command exits with a non-zero status.
 
 # Get the directory where this script is located (should be project root)
-PROJECT_ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 # Check if SETUP-INFO.md exists
 if [ ! -f "${PROJECT_ROOT_DIR}/SETUP-INFO.md" ]; then
@@ -23,7 +23,7 @@ if [ $# -eq 0 ]; then
   echo "   No arguments provided, running 'docker-compose down'."
   docker-compose stop
 else
-  echo "   Passing arguments to 'docker-compose down': $@"
+  echo "   Passing arguments to docker-compose stop: $*"
   docker-compose stop "$@"
 fi
 

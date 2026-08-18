@@ -80,7 +80,7 @@ if ! docker info >/dev/null 2>&1; then
 fi
 
 # Get the directory where this script is located (should be project root)
-PROJECT_ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PERMISSION_SCRIPT_PATH="${PROJECT_ROOT_DIR}/scripts/set-src-permissions.sh"
 
 # Function to ensure wp-config.php exists
@@ -106,7 +106,7 @@ ensure_wp_config() {
 # Check if SETUP-INFO.md exists
 if [ ! -f "${PROJECT_ROOT_DIR}/SETUP-INFO.md" ]; then
   echo "🔴 Error: SETUP-INFO.md not found in '${PROJECT_ROOT_DIR}'."
-  echo "   Please run './setup.sh' first to generate the necessary configuration and information file."
+  echo "   Please run './devenv setup' first to generate the necessary configuration and information file."
   exit 1
 fi
 
@@ -495,7 +495,7 @@ else
   echo "   Services were started in the foreground. If you stop them (Ctrl+C), permissions are already set for the next run."
 fi
 
-echo "   Usage: './start' (defaults to detached mode)."
-echo "   You can pass any 'docker-compose up' arguments, e.g., './start --build -d', './start wordpress'."
-echo "   If arguments are provided and '-d' or '--detach' is not among them, services will likely start in the foreground (e.g., './start --build')."
-echo "   To stop services, run './stop' or 'docker-compose down'."
+echo "   Usage: './devenv start' (defaults to detached mode)."
+echo "   You can pass any 'docker-compose up' arguments, e.g., './devenv start --build -d', './devenv start wordpress'."
+echo "   If arguments are provided and '-d' or '--detach' is not among them, services will likely start in the foreground (e.g., './devenv start --build')."
+echo "   To stop services, run './devenv stop' or 'docker-compose down'."

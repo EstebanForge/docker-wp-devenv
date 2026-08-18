@@ -14,7 +14,7 @@ This WordPress Docker environment includes SSL support using locally trusted cer
 ### Automatic Setup (Recommended)
 SSL is automatically configured when running the main setup script:
 ```bash
-./setup.sh
+./devenv setup
 ```
 
 ### Manual Setup

@@ -31,7 +31,7 @@ else
     --allow-root
 
   # Update URLs to use HTTPS
-  HTTPS_URL=$(echo "${WP_URL}" | sed 's/http:/https:/')
+  HTTPS_URL=${WP_URL/http:/https:}
   wp option update home "${HTTPS_URL}" --allow-root
   wp option update siteurl "${HTTPS_URL}" --allow-root
 

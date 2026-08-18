@@ -7,7 +7,10 @@ set -e
 
 # Load environment variables from .env file
 if [ -f .env ]; then
-  export $(cat .env | grep -v '^#' | xargs)
+  set -a
+  # shellcheck disable=SC1091
+  source .env
+  set +a
 else
   echo "❌ .env file not found! Please create it first."
   exit 1
@@ -24,6 +27,7 @@ if [ ! -f "$TEMPLATE_FILE" ]; then
 fi
 
 # Replace environment variables in template
+# shellcheck disable=SC2016
 envsubst '${WP_DOMAIN}' <"$TEMPLATE_FILE" >"$OUTPUT_FILE"
 
 echo "✅ Nginx configuration generated: $OUTPUT_FILE"

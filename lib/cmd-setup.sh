@@ -5,6 +5,9 @@
 
 set -e
 
+# Run from the project root (this script lives in lib/).
+cd "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)" || exit 1
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -71,7 +74,7 @@ check_dependencies() {
 # Generate secure password
 generate_password() {
   local length=${1:-16}
-  openssl rand -base64 32 | tr -d "=+/" | cut -c1-${length}
+  openssl rand -base64 32 | tr -d "=+/" | cut -c1-"${length}"
 }
 
 # Prompt for user input with default values
@@ -83,11 +86,11 @@ prompt_with_default() {
 
   if [ "$is_password" = "true" ]; then
     echo -n -e "${prompt} [${default}]: "
-    read -s user_input
+    read -rs user_input
     echo
   else
     echo -n -e "${prompt} [${default}]: "
-    read user_input
+    read -r user_input
   fi
 
   if [ -z "$user_input" ]; then
@@ -150,7 +153,8 @@ generate_env_file() {
 
   # Sanitize WP_DOMAIN to create a valid project name for COMPOSE_PROJECT_NAME
   # Docker Compose project names should be lowercase alphanumeric, can include underscores or hyphens
-  local project_name=$(echo "${WP_DOMAIN}" | tr '.' '_' | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9_-]//g')
+  local project_name
+  project_name=$(echo "${WP_DOMAIN}" | tr '.' '_' | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9_-]//g')
   COMPOSE_PROJECT_NAME="${project_name:-defaultwp}" # Fallback if somehow empty
 
   cat >.env <<EOF
@@ -315,6 +319,7 @@ run_setup_scripts() {
     # Install WordPress (only if containers are running)
     if docker-compose ps | grep -q "Up"; then
       print_success "Installing WordPress..."
+      # shellcheck disable=SC1091
       source .env && ./wp core install \
         --url="${WP_URL}" \
         --title="${WP_TITLE}" \
@@ -341,16 +346,14 @@ run_setup_scripts() {
 
       print_success "WordPress installation completed!"
     else
-      print_warning "Docker containers not running. WordPress will be installed on first ./start"
+      print_warning "Docker containers not running. WordPress will be installed on first './devenv start'"
     fi
   else
-    print_warning "Failed to start Docker services. WordPress will be installed on first ./start"
+    print_warning "Failed to start Docker services. WordPress will be installed on first './devenv start'"
   fi
 
   # Make WP-CLI wrapper executable
   chmod +x wp
-  # And our start script too
-  chmod +x start
 }
 
 # Generate setup information file
@@ -363,7 +366,7 @@ generate_setup_info() {
 ## 🎉 Your WordPress Docker environment is ready!
 
 ### Next Steps
-1. Start the environment: \`./start\`
+1. Start the environment: \`./devenv start\`
 2. Wait for containers to start (about 30-60 seconds)
 3. Visit your site: [https://${WP_DOMAIN}](https://${WP_DOMAIN})
 
@@ -439,7 +442,7 @@ display_final_instructions() {
   echo -e "${GREEN}🎉 Your WordPress Docker environment is ready!${NC}"
   echo ""
   echo -e "Next steps:"
-  echo -e "  1. Start the environment: ${BLUE}./start${NC}"
+  echo -e "  1. Start the environment: ${BLUE}./devenv start${NC}"
   echo -e "  2. Wait for containers to start (about 10-30 seconds, depends on your system)"
   echo -e "  3. Visit your site: ${BLUE}https://${WP_DOMAIN}${NC}"
   echo ""

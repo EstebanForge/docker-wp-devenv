@@ -3,11 +3,11 @@
 
 set -e
 
-PROJECT_ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "${PROJECT_ROOT_DIR}" || exit
 
 echo "🔄 Restarting Docker environment..."
 echo "🧹 Running 'docker-compose down --remove-orphans' to clear stale container/network state..."
 docker-compose down --remove-orphans || true
 
-./start "$@"
+bash "${PROJECT_ROOT_DIR}/lib/cmd-start.sh" "$@"

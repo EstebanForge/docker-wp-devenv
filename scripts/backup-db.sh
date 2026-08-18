@@ -48,4 +48,4 @@ if [ ! -s "$OUT" ]; then
 fi
 
 SIZE="$(du -h "$OUT" | cut -f1)"
-echo "Backup created: ${OUT#$REPO_ROOT/} ($SIZE)"
+echo "Backup created: ${OUT#"$REPO_ROOT"/} ($SIZE)"
