@@ -17,13 +17,18 @@ if [ ! -f "${PROJECT_ROOT}/docker-compose.yml" ]; then
 fi
 
 # Check if Docker is available and services are running.
-if ! command -v docker-compose >/dev/null 2>&1; then
-    echo "Error: docker-compose not found. Please ensure Docker is installed and in your PATH." >&2
-    exit 1
+# Compose command: prefer the v1 binary, fall back to the v2 plugin
+# (`docker compose`, also provided by podman-compose shims).
+if command -v docker-compose >/dev/null 2>&1; then
+    DOCKER_COMPOSE=(docker-compose)
+else
+    DOCKER_COMPOSE=(docker compose)
 fi
 
-if ! docker-compose ps -q php | grep -q .; then
-    echo "Error: The 'php' Docker service is not running. Please start your Docker environment (e.g., ./start)." >&2
+# podman-compose `ps` takes no service argument, so list container names
+# and match the php service under both v1 (_php_1) and v2 (-php-1) naming.
+if ! "${DOCKER_COMPOSE[@]}" ps -f '{{.Names}}' | grep -Eq '_php_1|-php-1'; then
+    echo "Error: The 'php' Docker service is not running. Please start your Docker environment (e.g., ./devenv start)." >&2
     exit 1
 fi
 
@@ -59,4 +64,4 @@ fi
 
 CMD_ARGS+=("$@")
 
-docker-compose exec -T -u "$USER" php "${CMD_ARGS[@]}"
+"${DOCKER_COMPOSE[@]}" exec -T -u "$USER" php "${CMD_ARGS[@]}"

@@ -3,6 +3,14 @@
 
 set -e # Exit immediately if a command exits with a non-zero status.
 
+# Compose command: prefer the v1 binary, fall back to the v2 plugin
+# (`docker compose`, also provided by podman-compose shims).
+if command -v docker-compose >/dev/null 2>&1; then
+  DOCKER_COMPOSE=(docker-compose)
+else
+  DOCKER_COMPOSE=(docker compose)
+fi
+
 # Detect OS and start the appropriate container runtime if not already running
 _wait_for_docker() {
   for _ in {1..15}; do
@@ -236,7 +244,7 @@ docker_up_with_retry() {
         # reflects docker-compose, while still streaming live output.
         set +e
         set -o pipefail
-        docker-compose up "$@" 2>&1 | tee "$up_log"
+        "${DOCKER_COMPOSE[@]}" up "$@" 2>&1 | tee "$up_log"
         rc=$?
         set +o pipefail
         set -e
@@ -273,8 +281,8 @@ docker_up_with_retry() {
             # Containers can reference a missing Docker network after daemon
             # resets. Tear the partial stack down and retry.
             echo -e "\n🩹 Detected missing Docker network reference. Healing compose state..."
-            docker-compose down --remove-orphans >/dev/null 2>&1 || true
-            docker-compose rm -f >/dev/null 2>&1 || true
+            "${DOCKER_COMPOSE[@]}" down --remove-orphans >/dev/null 2>&1 || true
+            "${DOCKER_COMPOSE[@]}" rm -f >/dev/null 2>&1 || true
             healed=1
         fi
 
@@ -467,7 +475,7 @@ if [ -f ".env" ]; then
 
     # Restart PHP container to ensure bind mount takes effect
     echo "🔄 Restarting PHP container to apply bind mount..."
-    docker-compose restart php
+    "${DOCKER_COMPOSE[@]}" restart php
     echo "   PHP container restarted"
   fi
 fi
@@ -498,4 +506,4 @@ fi
 echo "   Usage: './devenv start' (defaults to detached mode)."
 echo "   You can pass any 'docker-compose up' arguments, e.g., './devenv start --build -d', './devenv start wordpress'."
 echo "   If arguments are provided and '-d' or '--detach' is not among them, services will likely start in the foreground (e.g., './devenv start --build')."
-echo "   To stop services, run './devenv stop' or 'docker-compose down'."
+echo "   To stop services, run './devenv stop' or 'docker compose down'."
