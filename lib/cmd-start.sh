@@ -3,13 +3,9 @@
 
 set -e # Exit immediately if a command exits with a non-zero status.
 
-# Compose command: prefer the v1 binary, fall back to the v2 plugin
-# (`docker compose`, also provided by podman-compose shims).
-if command -v docker-compose >/dev/null 2>&1; then
-  DOCKER_COMPOSE=(docker-compose)
-else
-  DOCKER_COMPOSE=(docker compose)
-fi
+# Compose command resolution: v1 binary or v2 plugin, Docker or Podman.
+# shellcheck source=lib/compose.sh
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/compose.sh"
 
 # Detect OS and start the appropriate container runtime if not already running
 _wait_for_docker() {

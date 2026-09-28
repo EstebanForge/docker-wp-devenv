@@ -21,19 +21,24 @@ fi
 # Navigate to project root for docker-compose commands
 cd "${PROJECT_ROOT_DIR}"
 
-# 1. Check if docker-compose is available
-if ! command -v docker-compose &> /dev/null; then
-    echo "❌ Error: docker-compose could not be found. Please install it and ensure it's in your PATH."
-    exit 1
-fi
+# 1. Resolve compose command: prefer the v1 binary, fall back to the v2
+# plugin (`docker compose`, also provided by podman-compose shims).
+# shellcheck source=lib/compose.sh
+source "${PROJECT_ROOT_DIR}/lib/compose.sh"
 
 # 2. Check if php service is running
 echo "🔎 Checking if 'php' service is running..."
-if ! docker-compose ps php 2>/dev/null | grep -q "Up"; then
+# podman-compose 'ps' takes no service argument (same workaround as ./wp), so
+# list all and match the php container name; state wording differs per engine
+# ('Up ...' under docker compose vs 'running' under podman-compose).
+php_up() {
+    "${DOCKER_COMPOSE[@]}" ps 2>/dev/null | grep -E '_php_1|-php-1' | grep -Eqi 'Up|running'
+}
+if ! php_up; then
     echo "⚠️ 'php' service is not running or not found. Attempting to start services (php, db)..."
-    docker-compose up -d php db # Start only necessary services if not up
+    "${DOCKER_COMPOSE[@]}" up -d php db # Start only necessary services if not up
     sleep 8 # Give them a moment to start
-    if ! docker-compose ps php 2>/dev/null | grep -q "Up"; then
+    if ! php_up; then
         echo "❌ Error: 'php' service could not be started or is not running. Please ensure your Docker environment is correctly set up and services are running."
         exit 1
     fi
@@ -42,7 +47,7 @@ echo "✅ 'php' service is running."
 
 # 3. Get GID of www-data user from php container
 echo "🔎 Retrieving GID for 'www-data' user from 'php' container..."
-WWW_DATA_GID=$(docker-compose exec -T php id -g www-data 2>/dev/null | tr -d '\r')
+WWW_DATA_GID=$("${DOCKER_COMPOSE[@]}" exec -T php id -g www-data 2>/dev/null | tr -d '\r')
 
 if [ -z "${WWW_DATA_GID}" ] || ! [[ "${WWW_DATA_GID}" =~ ^[0-9]+$ ]]; then
     echo "❌ Error: Could not retrieve a valid GID for 'www-data' from the 'php' container."

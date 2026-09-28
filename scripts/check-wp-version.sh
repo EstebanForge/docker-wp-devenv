@@ -5,11 +5,17 @@
 
 set -e
 
+# Compose command resolution: v1 binary or v2 plugin, Docker or Podman.
+# shellcheck source=lib/compose.sh
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../lib/compose.sh"
+
 echo "🔍 WordPress Version Information"
 echo "================================"
 
 # Check WordPress version in Docker container (if running)
-if docker-compose ps | grep -q "php.*Up"; then
+# podman-compose 'ps' takes no service argument, so list all and match the
+# php container name; state wording differs per engine ('Up' vs 'running').
+if "${DOCKER_COMPOSE[@]}" ps 2>/dev/null | grep -E '_php_1|-php-1' | grep -Eqi 'Up|running'; then
   echo "📦 Container WordPress version:"
   ./wp core version 2>/dev/null || echo "   Container not accessible"
 else

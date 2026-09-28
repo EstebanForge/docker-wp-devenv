@@ -17,13 +17,9 @@ if [ ! -f "${PROJECT_ROOT}/docker-compose.yml" ]; then
 fi
 
 # Check if Docker is available and services are running.
-# Compose command: prefer the v1 binary, fall back to the v2 plugin
-# (`docker compose`, also provided by podman-compose shims).
-if command -v docker-compose >/dev/null 2>&1; then
-    DOCKER_COMPOSE=(docker-compose)
-else
-    DOCKER_COMPOSE=(docker compose)
-fi
+# Compose command resolution: v1 binary or v2 plugin, Docker or Podman.
+# shellcheck source=lib/compose.sh
+source "${PROJECT_ROOT}/lib/compose.sh"
 
 # podman-compose `ps` takes no service argument, so list container names
 # and match the php service under both v1 (_php_1) and v2 (-php-1) naming.

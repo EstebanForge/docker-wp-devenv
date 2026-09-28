@@ -43,9 +43,11 @@ check_dependencies() {
     missing_deps+=("docker")
   fi
 
-  # Check Docker Compose
-  if ! command -v docker-compose &>/dev/null; then
-    missing_deps+=("docker-compose")
+  # Resolve compose across engines (docker-compose v1, docker compose v2,
+  # podman compose); sets DOCKER_COMPOSE for the rest of this script.
+  # shellcheck source=lib/compose.sh
+  if ! source "lib/compose.sh"; then
+    missing_deps+=("a compose provider (docker-compose, 'docker compose' plugin, or podman-compose)")
   fi
 
   # Check envsubst (for nginx config generation)
@@ -273,7 +275,7 @@ run_setup_scripts() {
       echo "🚀 Bringing up Docker services via docker-compose..."
 
       # First attempt
-      if docker-compose up -d; then
+      if "${DOCKER_COMPOSE[@]}" up -d; then
           echo "✅ Docker services started successfully on the first attempt."
           return 0
       fi
@@ -291,7 +293,9 @@ run_setup_scripts() {
 
       # Find and stop all running containers that do NOT belong to the current project.
       local other_containers
-      other_containers=$(docker ps -q --format '{{.Names}}' | grep -v "^${project_name}_")
+      # v1/podman-compose name containers <project>_x_1; docker compose v2
+      # uses <project>-x-1. Exclude both so retry never stops our own stack.
+      other_containers=$(docker ps -q --format '{{.Names}}' | grep -vE "^${project_name}[_-]")
 
       if [ -n "$other_containers" ]; then
           echo "   Found running containers from other projects. Stopping them to free up ports..."
@@ -304,7 +308,7 @@ run_setup_scripts() {
       fi
 
       echo -e "\n🔄 Retrying 'docker-compose up'..."
-      if docker-compose up -d; then
+      if "${DOCKER_COMPOSE[@]}" up -d; then
           echo "✅ Docker services started successfully on the second attempt."
           return 0
       else
@@ -317,7 +321,7 @@ run_setup_scripts() {
   print_success "Starting Docker services..."
   if docker_up_with_retry; then
     # Install WordPress (only if containers are running)
-    if docker-compose ps | grep -q "Up"; then
+    if "${DOCKER_COMPOSE[@]}" ps | grep -Eqi 'Up|running'; then
       print_success "Installing WordPress..."
       # shellcheck disable=SC1091
       source .env && ./wp core install \
@@ -344,7 +348,7 @@ run_setup_scripts() {
 
       # Also remove from inside the container to ensure volume mount works
       echo "🔧 Ensuring container volume mount is working..."
-      docker-compose exec -T php rm -rf /var/www/html/wp-content 2>/dev/null || true
+      "${DOCKER_COMPOSE[@]}" exec -T php rm -rf /var/www/html/wp-content 2>/dev/null || true
       echo "   Container wp-content directory cleared"
 
       print_success "WordPress installation completed!"
@@ -383,16 +387,16 @@ generate_setup_info() {
 #### Docker Management
 \`\`\`bash
 # View logs
-docker-compose logs -f
+./devenv logs
 
 # Stop environment
-docker-compose down
+./devenv stop
 
 # Restart environment
-docker-compose restart
+./devenv restart
 
 # Start environment
-docker-compose up -d
+./devenv start
 \`\`\`
 
 #### WordPress CLI

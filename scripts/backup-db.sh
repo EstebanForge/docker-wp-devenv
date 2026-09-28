@@ -22,10 +22,15 @@ mkdir -p "$BACKUP_DIR"
 
 cd "$REPO_ROOT"
 
-# Require the db container to be up.
-if ! docker compose ps db --format '{{.Status}}' 2>/dev/null | grep -qi 'Up'; then
+# Compose command resolution: v1 binary or v2 plugin, Docker or Podman.
+# shellcheck source=lib/compose.sh
+source "$REPO_ROOT/lib/compose.sh"
+
+# Require the db container to be up. podman-compose 'ps' takes no service
+# argument; state wording differs per engine ('Up' vs 'running').
+if ! "${DOCKER_COMPOSE[@]}" ps 2>/dev/null | grep -E '_db_1|-db-1' | grep -Eqi 'Up|running'; then
 	echo "Error: the 'db' container is not running." >&2
-	echo "Start the stack first: docker compose up -d" >&2
+	echo "Start the stack first: ${DOCKER_COMPOSE[*]} up -d" >&2
 	exit 1
 fi
 
@@ -36,7 +41,7 @@ OUT="$BACKUP_DIR/wp-${STAMP}.sql.gz"
 # --quick: stream rows instead of buffering (keeps memory flat on big tables).
 # --add-drop-table: makes the dump restorable over an existing DB.
 echo "Dumping database..."
-docker compose exec -T db sh -c \
+"${DOCKER_COMPOSE[@]}" exec -T db sh -c \
 	'exec mysqldump --single-transaction --quick --add-drop-table -u root -p"$MYSQL_ROOT_PASSWORD" "$MYSQL_DATABASE"' \
 	| gzip > "$OUT"
 

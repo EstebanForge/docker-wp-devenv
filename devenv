@@ -14,8 +14,8 @@
 #   restart    Full compose reset (down --remove-orphans), then start; extra args go to start
 #   rebuild    Nuke containers, volumes and images, rebuild from scratch, then start
 #   wp <cmd>   Run WP-CLI inside the php container (delegates to ./wp)
-#   status     Show container status (docker-compose ps)
-#   logs       Follow service logs (docker-compose logs -f); extra args pass through
+#   status     Show container status
+#   logs       Follow service logs; extra args pass through
 #   help       Show this help
 
 set -euo pipefail
@@ -40,15 +40,19 @@ cmd_wp() {
 
 cmd_status() {
   cd "${DEVENV_ROOT}"
-  docker-compose ps "$@"
+  # shellcheck source=lib/compose.sh
+  source "${DEVENV_ROOT}/lib/compose.sh"
+  "${DOCKER_COMPOSE[@]}" ps "$@"
 }
 
 cmd_logs() {
   cd "${DEVENV_ROOT}"
+  # shellcheck source=lib/compose.sh
+  source "${DEVENV_ROOT}/lib/compose.sh"
   if [ $# -eq 0 ]; then
-    docker-compose logs -f
+    "${DOCKER_COMPOSE[@]}" logs -f
   else
-    docker-compose logs "$@"
+    "${DOCKER_COMPOSE[@]}" logs "$@"
   fi
 }
 

@@ -35,13 +35,19 @@ fi
 
 cd "$REPO_ROOT"
 
-if ! docker compose ps db --format '{{.Status}}' 2>/dev/null | grep -qi 'Up'; then
+# Compose command resolution: v1 binary or v2 plugin, Docker or Podman.
+# shellcheck source=lib/compose.sh
+source "$REPO_ROOT/lib/compose.sh"
+
+# podman-compose 'ps' takes no service argument; state wording differs per
+# engine ('Up' vs 'running').
+if ! "${DOCKER_COMPOSE[@]}" ps 2>/dev/null | grep -E '_db_1|-db-1' | grep -Eqi 'Up|running'; then
 	echo "Error: the 'db' container is not running." >&2
-	echo "Start the stack first: docker compose up -d" >&2
+	echo "Start the stack first: ${DOCKER_COMPOSE[*]} up -d" >&2
 	exit 1
 fi
 
-DB_NAME="$(docker compose exec -T db printenv MYSQL_DATABASE </dev/null | tr -d '\r\n')"
+DB_NAME="$("${DOCKER_COMPOSE[@]}" exec -T db printenv MYSQL_DATABASE </dev/null | tr -d '\r\n')"
 
 echo "WARNING: this will OVERWRITE the '$DB_NAME' database."
 echo "Source:  ${FILE#"$REPO_ROOT"/}"
@@ -50,10 +56,10 @@ read -r -p "Continue? [y/N] " ans
 
 echo "Restoring..."
 if [[ "$FILE" == *.gz ]]; then
-	gunzip -c "$FILE" | docker compose exec -T db sh -c \
+	gunzip -c "$FILE" | "${DOCKER_COMPOSE[@]}" exec -T db sh -c \
 		'exec mysql -u root -p"$MYSQL_ROOT_PASSWORD" "$MYSQL_DATABASE"'
 else
-	cat "$FILE" | docker compose exec -T db sh -c \
+	cat "$FILE" | "${DOCKER_COMPOSE[@]}" exec -T db sh -c \
 		'exec mysql -u root -p"$MYSQL_ROOT_PASSWORD" "$MYSQL_DATABASE"'
 fi
 
