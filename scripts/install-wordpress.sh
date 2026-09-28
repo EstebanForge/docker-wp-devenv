@@ -44,8 +44,11 @@ wp plugin delete akismet --allow-root || echo "ℹ️  Akismet not found or alre
 wp plugin delete hello --allow-root || echo "ℹ️  Hello Dolly plugin (hello.php) not found or already deleted."
 echo "✅ Default plugins processed."
 
-# Activate all the plugins installed by Composer
-wp plugin activate --all --allow-root
+# Activate all the plugins installed by Composer, one process each: a
+# single request stacking all activations exhausts memory_limit.
+for p in $(wp plugin list --status=inactive --field=name); do
+  wp plugin activate "$p" --allow-root
+done
 
 # Activate twentytwentyfive theme
 wp theme activate twentytwentyfive --allow-root

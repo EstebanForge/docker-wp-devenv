@@ -424,8 +424,11 @@ if [ -f ".env" ]; then
       --admin_email="${WP_ADMIN_EMAIL}" \
       --skip-email
 
-    # Activate plugins and theme
-    ./wp plugin activate --all
+    # Activate plugins and theme, one process each: a single request
+    # stacking all activations exhausts memory_limit and dies with 255.
+    for p in $(./wp plugin list --status=inactive --field=name); do
+        ./wp plugin activate "$p"
+    done
 
     # Wait a moment for themes to be properly registered
     echo "⏳ Waiting for themes to be registered..."
