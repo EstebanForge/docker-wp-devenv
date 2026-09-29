@@ -233,6 +233,12 @@ docker_up_with_retry() {
     local max_attempts=4
     up_log=$(mktemp)
 
+    # Engine/OCI runtime start failures. podman-compose exits 0 even when
+    # every detached container start fails, so the log must be trusted over
+    # the exit code. Patterns stay tight to engine signatures (hex container
+    # id, crun/exec.fifo, OCI runtime) so application logs cannot trigger them.
+    local start_fail_re='cannot open .*/exec\.fifo|unable to start container [0-9a-f]+|crun start .* failed|Error response from daemon:.*OCI runtime'
+
     for (( i=1; i<=max_attempts; i++ )); do
         # CRITICAL: a bare `cmd | tee` reports tee's exit status (always 0),
         # masking a docker-compose failure and making the script falsely print
@@ -246,13 +252,19 @@ docker_up_with_retry() {
         set -e
 
         if [ "$rc" -eq 0 ]; then
-            rm -f "$up_log"
-            if [ "$i" -eq 1 ]; then
-                echo "✅ Docker services started successfully on the first attempt."
+            # podman-compose reports success after failed detached starts.
+            # Confirm with the log before declaring victory.
+            if grep -Eiq "$start_fail_re" "$up_log" 2>/dev/null; then
+                echo -e "\n⚠️  Compose exited 0 but container starts failed in the runtime. Healing stale containers..."
             else
-                echo "✅ Docker services started successfully (attempt ${i} of ${max_attempts})."
+                rm -f "$up_log"
+                if [ "$i" -eq 1 ]; then
+                    echo "✅ Docker services started successfully on the first attempt."
+                else
+                    echo "✅ Docker services started successfully (attempt ${i} of ${max_attempts})."
+                fi
+                return 0
             fi
-            return 0
         fi
 
         # Pick the self-heal that matches THIS failure. Order matters: a port
@@ -277,6 +289,15 @@ docker_up_with_retry() {
             # Containers can reference a missing Docker network after daemon
             # resets. Tear the partial stack down and retry.
             echo -e "\n🩹 Detected missing Docker network reference. Healing compose state..."
+            "${DOCKER_COMPOSE[@]}" down --remove-orphans >/dev/null 2>&1 || true
+            "${DOCKER_COMPOSE[@]}" rm -f >/dev/null 2>&1 || true
+            healed=1
+        elif grep -Eiq "$start_fail_re" "$up_log" 2>/dev/null; then
+            # Created-but-never-started containers fail with a missing
+            # exec.fifo once a reboot wipes /run/user/<uid>/crun. Purge the
+            # containers (named volumes survive) so the retry recreates them
+            # with fresh runtime state.
+            echo -e "\n🩹 Detected stale container runtime state. Purging stale containers..."
             "${DOCKER_COMPOSE[@]}" down --remove-orphans >/dev/null 2>&1 || true
             "${DOCKER_COMPOSE[@]}" rm -f >/dev/null 2>&1 || true
             healed=1
